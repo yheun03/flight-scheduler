@@ -28,6 +28,41 @@ export function getBlocks(dataset) {
     });
 }
 
+export function solveSchedule(dataset) {
+    const blocks = getBlocks(dataset).sort((a, b) => a.start - b.start || a.end - b.end);
+    const states = dataset.aircraft.map((aircraft) => ({
+        aircraft,
+        end: dataset.weekStart,
+        hours: aircraft.initialHours,
+        cycles: aircraft.initialCycles,
+        count: 0,
+    }));
+    const assignments = [];
+    for (const block of blocks) {
+        const candidates = states
+            .filter((state) => {
+                const maintenance = dataset.maintenance.filter(
+                    (item) => item.aircraftId === state.aircraft.id,
+                );
+                return (
+                    state.end <= block.start &&
+                    state.hours + block.hours <= dataset.rules.maxHours &&
+                    state.cycles + block.cycles <= dataset.rules.maxCycles &&
+                    !maintenance.some((item) => item.start < block.end && item.end > block.start)
+                );
+            })
+            .sort((a, b) => a.count - b.count || b.end - a.end || a.hours - b.hours);
+        const state = candidates[0];
+        if (!state) throw new Error(`${block.outbound.number}편을 배정할 수 있는 기체가 없습니다.`);
+        assignments.push({ rotationId: block.id, aircraftId: state.aircraft.id });
+        state.end = block.end;
+        state.hours += block.hours;
+        state.cycles += block.cycles;
+        state.count += 1;
+    }
+    return assignments;
+}
+
 export function validate(dataset, assignments, repeat = false) {
     const blocks = getBlocks(dataset);
     const issues = [];

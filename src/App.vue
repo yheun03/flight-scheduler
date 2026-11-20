@@ -1,12 +1,13 @@
 <template>
     <div class="scheduler">
         <aside class="sidebar" aria-label="앱 메뉴">
-            <a class="sidebar__brand" href="#main" aria-label="Flight Scheduler 메인">
+            <a class="sidebar__brand" href="#main" aria-label="Flight Scheduler 메인" @click="currentPage = 'scheduler'">
                 <AppIcon name="plane" />
             </a>
             <span class="sidebar__divider"></span>
             <button
-                class="sidebar__item sidebar__item--active"
+                class="sidebar__item"
+                :class="{ 'sidebar__item--active': currentPage === 'scheduler' }"
                 aria-label="운항 스케줄"
                 title="운항 스케줄"
                 @click="scrollTimeline"
@@ -15,11 +16,20 @@
             </button>
             <button
                 class="sidebar__item"
+                :class="{ 'sidebar__item--active': currentPage === 'flights' }"
+                aria-label="항공사별 운항 편명"
+                title="항공사별 운항 편명"
+                @click="currentPage = 'flights'"
+            >
+                <AppIcon name="grid" />
+            </button>
+            <button
+                class="sidebar__item"
                 aria-label="시나리오와 난이도"
                 title="시나리오와 난이도"
                 @click="openDialog('levels')"
             >
-                <AppIcon name="grid" />
+                <AppIcon name="settings" />
             </button>
             <button class="sidebar__item" aria-label="운영 결과" title="운영 결과" @click="showResults">
                 <AppIcon name="chart" />
@@ -50,7 +60,9 @@
                     <span>SCHEDULER</span>
                 </a>
                 <span class="topbar__separator">/</span>
-                <span class="topbar__section">운항 계획실</span>
+                <span class="topbar__section">
+                    {{ currentPage === 'scheduler' ? '운항 계획실' : '항공사별 운항 편명' }}
+                </span>
                 <div class="topbar__right">
                     <span class="topbar__local">브라우저 로컬 플레이</span>
                     <button class="button button--quiet" @click="openDialog('help')">
@@ -59,7 +71,7 @@
                     </button>
                 </div>
             </header>
-            <main id="main" class="workspace">
+            <main v-if="currentPage === 'scheduler'" id="main" class="workspace">
                 <div class="page-heading">
                     <div>
                         <div class="eyebrow">AIRLINE OPERATIONS PUZZLE</div>
@@ -67,17 +79,16 @@
                             나만의 운항을 설계하세요
                             <span class="page-heading__plane">✈</span>
                         </h1>
-                        <p>정해진 시간표, 여섯 대의 항공기. 빈틈없는 한 주를 완성해 보세요.</p>
+                        <p>
+                            정해진 시간표, {{ dataset.aircraft.length }}대의 가상 항공기. 빈틈없는 한 주를
+                            완성해 보세요.
+                        </p>
                     </div>
                     <button class="scenario-pill" @click="openDialog('levels')">
-                        <span class="scenario-pill__logo">
-                            AIR
-                            <br />
-                            SEOUL
-                        </span>
+                        <span class="scenario-pill__logo">{{ dataset.airlineCode }}</span>
                         <span>
-                            <strong>에어서울</strong>
-                            <small>최하 난이도 / 가상 기체 6대</small>
+                            <strong>{{ dataset.airlineName }}</strong>
+                            <small>{{ dataset.difficulty }} / 가상 기체 {{ dataset.aircraft.length }}대</small>
                         </span>
                         <AppIcon name="settings" />
                     </button>
@@ -85,7 +96,13 @@
 
                 <div class="scenario-bar">
                     <span class="badge">
-                        {{ dataset.kind === 'partial' ? '부분 시간표' : '가상 시간표' }}
+                        {{
+                            dataset.kind === 'partial'
+                                ? '부분 시간표'
+                                : dataset.kind === 'weekly'
+                                  ? '주간 시간표'
+                                  : '가상 시간표'
+                        }}
                     </span>
                     <label class="scenario-bar__select">
                         시나리오
@@ -99,9 +116,10 @@
                     </label>
                     <span class="scenario-bar__note">
                         {{
-                            dataset.kind === 'partial'
-                                ? '11.20 일부 예정편 + 11.21 오사카편만 수록. 미확인 날짜는 비어 있습니다.'
-                                : 'FS 편명과 모든 시각은 게임용 창작 데이터입니다.'
+                            dataset.description ||
+                            (dataset.kind === 'partial'
+                                ? '2026.11.20 기준 일부 노선을 요일·현지 시각으로 구성했습니다.'
+                                : 'FS 편명과 모든 시각은 게임용 창작 데이터입니다.')
                         }}
                     </span>
                     <button class="text-button" @click="openDialog('sources')">출처와 검증 범위</button>
@@ -140,10 +158,12 @@
                             <span class="metric__label">사용 기체</span>
                             <strong>
                                 {{ result.used }}
-                                <small>/ 6대</small>
+                                <small>/ {{ dataset.aircraft.length }}대</small>
                             </strong>
                         </div>
-                        <span class="metric__note">가상 식별자 AS01–06</span>
+                        <span class="metric__note">
+                            가상 식별자 {{ dataset.aircraft[0].id }}–{{ dataset.aircraft.at(-1).id }}
+                        </span>
                     </article>
                     <article class="metric metric--score">
                         <div class="metric__icon"><AppIcon name="chart" /></div>
@@ -164,7 +184,7 @@
                             <div class="section-kicker">FLEET TIMELINE</div>
                             <h2 id="timeline-title">
                                 주간 운항 스케줄
-                                <span class="week-label">2026.11.16 – 11.22</span>
+                                <span class="week-label">요일 · 시각 기준</span>
                             </h2>
                         </div>
                     </div>
@@ -197,6 +217,14 @@
                                 <AppIcon name="folder" />
                                 불러오기
                             </button>
+                            <button
+                                v-if="dataset.airlineCode === 'YP'"
+                                class="button"
+                                @click="showAnswer"
+                            >
+                                <AppIcon name="grid" />
+                                정답 보기
+                            </button>
                             <button class="button button--primary" @click="showResults">
                                 <AppIcon name="check" />
                                 운항 검증
@@ -215,15 +243,10 @@
                         ref="timelineScroll"
                         class="timeline-scroll"
                         tabindex="0"
-                        aria-label="항공기 운항 타임라인, 가로 스크롤 가능"
+                        aria-label="항공기 주간 운항 타임라인"
                     >
                         <div
                             class="timeline"
-                            :style="{
-                                '--track-width': trackWidth + 'px',
-                                '--day-width': trackWidth / 7 + 'px',
-                                '--hour-width': trackWidth / 168 + 'px',
-                            }"
                         >
                             <div class="timeline__header">
                                 <div class="timeline__corner">
@@ -370,7 +393,7 @@
                                     미배정 왕복편
                                     <span class="count-badge">{{ unassigned.length }}</span>
                                 </h2>
-                                <p>한 블록에 왕편, 현지 대기, 복편, 귀환 후 준비가 포함됩니다.</p>
+                                <p>왕복편을 확인하고 기체를 선택하면 주간 스케줄에 바로 등록됩니다.</p>
                             </div>
                             <label class="tray__filter">
                                 <span class="sr-only">출발 공항 필터</span>
@@ -381,16 +404,41 @@
                                 </select>
                             </label>
                         </div>
+                        <ol class="tray__steps" aria-label="주간 스케줄 등록 순서">
+                            <li><b>1</b> 운항 요일·시각 확인</li>
+                            <li><b>2</b> 배정할 기체 선택</li>
+                            <li><b>3</b> 타임라인 오류 확인</li>
+                        </ol>
                         <div class="tray__grid">
-                            <FlightBlock
+                            <div
                                 v-for="block in filteredUnassigned"
                                 :key="block.id"
-                                :block="block"
-                                :selected="selectedId === block.id"
-                                @select="selectBlock"
-                                @drag-start="dragId = $event"
-                                @drag-end="endDrag"
-                            />
+                                class="tray__item"
+                            >
+                                <FlightBlock
+                                    :block="block"
+                                    :selected="selectedId === block.id"
+                                    @select="selectBlock"
+                                    @drag-start="dragId = $event"
+                                    @drag-end="endDrag"
+                                />
+                                <label class="tray__assign">
+                                    <span>주간 스케줄에 등록</span>
+                                    <select
+                                        aria-label="배정할 기체 선택"
+                                        @change="assign(block.id, $event.target.value || null)"
+                                    >
+                                        <option value="" selected disabled>기체 선택</option>
+                                        <option
+                                            v-for="plane in dataset.aircraft"
+                                            :key="plane.id"
+                                            :value="plane.id"
+                                        >
+                                            {{ plane.id }} · {{ plane.startAirport }} 시작
+                                        </option>
+                                    </select>
+                                </label>
+                            </div>
                             <div v-if="!filteredUnassigned.length" class="empty-state">
                                 <AppIcon :name="unassigned.length ? 'box' : 'check'" />
                                 <strong>
@@ -446,14 +494,14 @@
                                         </small>
                                     </strong>
                                     <span>
-                                        {{ flight.from }} → {{ flight.to }} / {{ flight.departureDate }}
+                                        {{ flight.from }} → {{ flight.to }} / {{ flight.weekday }}요일
                                     </span>
                                     <small>
                                         현지 {{ flight.departureTimeZone }} / {{ flight.arrivalTimeZone }}
                                     </small>
                                     <small>
-                                        KST {{ formatDate(Date.parse(flight.scheduledDeparture)) }} →
-                                        {{ formatDate(Date.parse(flight.scheduledArrival)) }}
+                                        KST {{ formatTime(Date.parse(flight.scheduledDeparture)) }} →
+                                        {{ formatTime(Date.parse(flight.scheduledArrival)) }}
                                     </small>
                                 </div>
                             </div>
@@ -496,9 +544,9 @@
                             </label>
                             <p class="detail__source">
                                 {{
-                                    dataset.kind === 'partial'
-                                        ? '보조 출처 확인 / 공식 주간 검증 미완료'
-                                        : '가상 연습용 시간표'
+                                    dataset.kind === 'fiction'
+                                        ? '가상 연습용 시간표'
+                                        : '2026.11.20 기준 주간 운항 자료'
                                 }}
                                 <br />
                                 준비 시간, 정비와 기체 수는 게임 설정입니다.
@@ -572,6 +620,69 @@
                     <button class="button" @click="storageError = ''">닫기</button>
                 </div>
             </main>
+            <main v-else id="main" class="workspace flight-catalog">
+                <div class="page-heading">
+                    <div>
+                        <div class="eyebrow">FLIGHT NUMBER CATALOG</div>
+                        <h1>항공사별 운항 편명</h1>
+                        <p>2026.11.20 기준 정기 운항 편명과 요일·현지 시각입니다.</p>
+                    </div>
+                    <span class="badge">오늘 기준</span>
+                </div>
+                <div class="flight-catalog__toolbar">
+                    <div class="flight-catalog__airlines" role="tablist" aria-label="항공사 선택">
+                        <button
+                            v-for="airline in airlineSchedules"
+                            :key="airline.id"
+                            class="button"
+                            :class="{ 'button--primary': selectedAirlineId === airline.id }"
+                            @click="selectedAirlineId = airline.id"
+                        >
+                            {{ airline.name }}
+                            <small>{{ airline.code }}</small>
+                        </button>
+                    </div>
+                    <label>
+                        <span class="sr-only">출발지 그룹</span>
+                        <select v-model="departureGroupFilter">
+                            <option value="all">모든 출발지</option>
+                            <option value="인천 출발">인천 출발</option>
+                            <option value="김포 출발">김포 출발</option>
+                            <option value="기타 출발">기타 출발</option>
+                        </select>
+                    </label>
+                </div>
+                <section class="panel flight-catalog__panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>{{ selectedAirline.name }} 운항편</h2>
+                            <p>총 {{ filteredAirlineSchedules.length }}개 편명</p>
+                        </div>
+                    </div>
+                    <div class="flight-catalog__table-wrap">
+                        <table class="flight-catalog__table">
+                            <thead>
+                                <tr>
+                                    <th>편명</th>
+                                    <th>출발</th>
+                                    <th>도착</th>
+                                    <th>운항 요일</th>
+                                    <th>현지 시각</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="flight in filteredAirlineSchedules" :key="flight.flight_number">
+                                    <td><strong>{{ flight.flight_number }}</strong></td>
+                                    <td>{{ flight.origin_name }} <small>{{ flight.origin_code }}</small></td>
+                                    <td>{{ flight.destination_name }} <small>{{ flight.destination_code }}</small></td>
+                                    <td><span class="badge badge--neutral">{{ flight.operation_pattern }}</span></td>
+                                    <td>{{ flight.departure_time_local }} → {{ flight.arrival_time_local }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
         </div>
         <dialog ref="dialog" class="modal" @click="closeOnBackdrop">
             <div class="modal__header">
@@ -629,7 +740,7 @@
                                     [
                                         '필수 왕복편 배정 비율',
                                         '현지 준비와 다음 편까지의 추가 여유',
-                                        '초기 운항량을 포함한 6대의 편차',
+                                        `초기 운항량을 포함한 ${dataset.aircraft.length}대의 편차`,
                                         '전체 필수 운항 비용과 사용 기체 수',
                                     ][i]
                                 }}
@@ -658,7 +769,10 @@
                             <dd>{{ number(result.maintenanceReserve) }}</dd>
                         </div>
                         <div>
-                            <dt>필수 정비 / 6개 × {{ dataset.rules.maintenanceCost }}</dt>
+                            <dt>
+                                필수 정비 / {{ dataset.maintenance.length }}개 ×
+                                {{ dataset.rules.maintenanceCost }}
+                            </dt>
                             <dd>{{ number(result.mandatoryMaintenance) }}</dd>
                         </div>
                         <div>
@@ -739,22 +853,21 @@
                     <article
                         v-for="level in levels"
                         :key="level.name"
-                        :class="{ 'level-list__active': level.name === '에어서울' }"
+                        :class="{ 'level-list__active': level.datasetId === dataset.id }"
+                        @click="selectLevel(level)"
                     >
                         <span class="level-list__difficulty">{{ level.difficulty }}</span>
                         <div>
                             <h3>{{ level.name }}</h3>
                             <p>{{ level.note }}</p>
                         </div>
-                        <span class="badge" :class="{ 'badge--neutral': level.name !== '에어서울' }">
-                            {{ level.name === '에어서울' ? '플레이 가능' : '준비 중' }}
+                        <span class="badge" :class="{ 'badge--neutral': !level.datasetId }">
+                            {{ level.datasetId ? (level.datasetId === dataset.id ? '선택됨' : '플레이') : '준비 중' }}
                         </span>
                     </article>
                 </div>
                 <p class="modal__note">
-                    마스터 난이도의 진에어를 서로 다른 플레이에서 3회 클리어하면 실무가 해금됩니다. 현재
-                    에어서울 클리어는 마스터 횟수에 포함하지 않습니다. 다른 항공사 플레이는 아직 제공하지
-                    않습니다.
+                    에어서울과 에어프레미아를 플레이할 수 있습니다. 기체 수와 운항 한도는 게임용 설정입니다.
                 </p>
             </template>
             <template v-if="dialogType === 'help'">
@@ -808,9 +921,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppIcon from './components/AppIcon.vue';
 import FlightBlock from './components/FlightBlock.vue';
 import { airports, datasets, sources, tutorial } from './data/schedules';
+import { airlineSchedules } from './data/airlineSchedules';
 import {
     evaluate,
     getBlocks,
+    solveSchedule,
     makeSave,
     parseSave,
     recordClear,
@@ -821,6 +936,9 @@ import {
 } from './game';
 
 const dataset = ref(tutorial);
+const currentPage = ref('scheduler');
+const selectedAirlineId = ref('airseoul');
+const departureGroupFilter = ref('all');
 const assignments = ref([]);
 const repeat = ref(false);
 const playId = ref(crypto.randomUUID());
@@ -839,13 +957,31 @@ const timelineScroll = ref(null);
 let noticeTimer;
 const levels = [
     { name: '파라타항공', difficulty: '최하', note: '가상 기체 6대' },
-    { name: '에어서울', difficulty: '최하', note: '가상 기체 6대 / 부분 시간표 튜토리얼' },
-    { name: '에어프레미아', difficulty: '중', note: '장거리 운항 도전' },
+    {
+        name: '에어프레미아',
+        difficulty: '최하',
+        note: '가상 기체 9대 / 중·장거리 주간 운항',
+        datasetId: 'airpremia-weekly-20261120-v1',
+    },
+    {
+        name: '에어서울',
+        difficulty: '하',
+        note: '가상 기체 6대 / 부분 시간표 튜토리얼',
+        datasetId: 'airseoul-partial-20261120-v1',
+    },
     { name: '에어부산', difficulty: '상', note: '넓어지는 노선 네트워크' },
-    { name: '진에어', difficulty: '마스터', note: '복잡한 기단 운영' },
     { name: '아시아나항공', difficulty: '실무', note: '마스터 3회 클리어 시 해금' },
+    { name: '진에어', difficulty: '마스터', note: '복잡한 기단 운영' },
 ];
 const blocks = computed(() => getBlocks(dataset.value));
+const selectedAirline = computed(
+    () => airlineSchedules.find((airline) => airline.id === selectedAirlineId.value) || airlineSchedules[0],
+);
+const filteredAirlineSchedules = computed(() =>
+    selectedAirline.value.schedules.filter(
+        (flight) => departureGroupFilter.value === 'all' || flight.departure_group === departureGroupFilter.value,
+    ),
+);
 const result = computed(() => evaluate(dataset.value, assignments.value, repeat.value));
 const conflicts = computed(() => result.value.issues.filter((i) => i.code !== 'unassigned'));
 const unassigned = computed(() =>
@@ -859,16 +995,22 @@ const days = computed(() =>
     Array.from({ length: 7 }, (_, index) => ({
         index,
         start: dataset.value.weekStart + index * 24 * HOUR,
-        label: `11.${16 + index} (${['월', '화', '수', '목', '금', '토', '일'][index]})`,
+        label: ['월', '화', '수', '목', '금', '토', '일'][index],
     })),
 );
 const rangeStart = computed(() => dataset.value.weekStart);
 const rangeEnd = computed(() => dataset.value.weekEnd);
-const trackWidth = 4032;
 const formatDate = (value) =>
     new Intl.DateTimeFormat('ko-KR', {
         month: '2-digit',
         day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+        timeZone: 'Asia/Seoul',
+    }).format(value);
+const formatTime = (value) =>
+    new Intl.DateTimeFormat('ko-KR', {
         hour: '2-digit',
         minute: '2-digit',
         hourCycle: 'h23',
@@ -908,9 +1050,11 @@ function rowHeight(id) {
     return 91 + Math.max(0, ...Object.values(lanesFor(id))) * 73;
 }
 function position(block) {
+    const start = Math.max(block.start, rangeStart.value);
+    const end = Math.min(block.end, rangeEnd.value);
     return {
-        left: `${((block.start - rangeStart.value) / (rangeEnd.value - rangeStart.value)) * 100}%`,
-        width: `${((block.end - block.start) / (rangeEnd.value - rangeStart.value)) * 100}%`,
+        left: `${((start - rangeStart.value) / (rangeEnd.value - rangeStart.value)) * 100}%`,
+        width: `${((end - start) / (rangeEnd.value - rangeStart.value)) * 100}%`,
     };
 }
 function toast(message) {
@@ -930,11 +1074,12 @@ function persistSession() {
 }
 function seed() {
     const b = blocks.value;
+    const fleet = dataset.value.aircraft;
     assignments.value = [
-        { rotationId: b[0].id, aircraftId: 'AS01' },
-        { rotationId: b[1].id, aircraftId: 'AS01' },
-        { rotationId: b[4].id, aircraftId: 'AS05' },
-    ];
+        b[0] && { rotationId: b[0].id, aircraftId: fleet[0].id },
+        b[1] && { rotationId: b[1].id, aircraftId: fleet[0].id },
+        b[4] && { rotationId: b[4].id, aircraftId: fleet[Math.min(4, fleet.length - 1)].id },
+    ].filter(Boolean);
     selectedId.value = b[0].id;
 }
 function restoreSession() {
@@ -1010,7 +1155,8 @@ async function focusSelectedBlock(scrollPage = true) {
     if (scrollPage) block.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
 }
 function scrollTimeline() {
-    timelineSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    currentPage.value = 'scheduler';
+    nextTick(() => timelineSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 }
 function changeDataset(id) {
     persistSession();
@@ -1022,6 +1168,11 @@ function changeDataset(id) {
     airportFilter.value = 'all';
     restoreSession();
     focusSelectedBlock(false);
+}
+function selectLevel(level) {
+    if (!level.datasetId) return;
+    changeDataset(level.datasetId);
+    dialog.value.close();
 }
 function newPlay() {
     playId.value = crypto.randomUUID();
@@ -1112,6 +1263,15 @@ function showResults() {
         }
     }
     openDialog('results');
+}
+function showAnswer() {
+    try {
+        commit(solveSchedule(dataset.value));
+        selectedId.value = blocks.value[0]?.id || null;
+        toast('2026.11.20 기준 에어프레미아 주간 스케줄로 자동 배정했습니다.');
+    } catch (error) {
+        toast(error.message);
+    }
 }
 function keydown(event) {
     if (dialog.value?.open || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;

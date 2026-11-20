@@ -27,8 +27,13 @@
             <span v-else class="flight-block__grip" aria-hidden="true">⠿</span>
         </span>
         <span class="flight-block__numbers">
-            {{ block.outbound.number }} / {{ block.inbound.number }}
-            <span v-if="dayOffset">+{{ dayOffset }}일</span>
+            <span>{{ block.outbound.number }} / {{ block.inbound.number }}</span>
+            <span v-if="compact" class="flight-block__compact-time">
+                {{ weekdayShort }} {{ block.outbound.departureLocal }}
+            </span>
+        </span>
+        <span v-if="!compact" class="flight-block__route">
+            {{ block.outbound.from }} → {{ block.outbound.to }} → {{ block.inbound.to }}
         </span>
         <span class="flight-block__segments" aria-hidden="true">
             <span
@@ -39,11 +44,13 @@
             ></span>
         </span>
         <span v-if="!compact" class="flight-block__time">
-            {{ block.outbound.departureDate.slice(5).replace('-', '.') }} {{ time(block.start) }} –
-            {{ time(block.arrival) }}
-            <span v-if="dayOffset">+{{ dayOffset }}일</span>
-            <span>준비 {{ block.turnaroundMinutes }}분</span>
+            <span><small>출발</small> {{ weekdayShort }} {{ block.outbound.departureLocal }}</span>
+            <span>
+                <small>귀환</small> {{ arrivalWeekday }} {{ time(block.arrival) }}
+                <em v-if="dayOffset">+{{ dayOffset }}일</em>
+            </span>
         </span>
+        <span v-if="!compact" class="flight-block__ready">귀환 후 준비 {{ block.turnaroundMinutes }}분</span>
     </button>
 </template>
 <script setup>
@@ -69,13 +76,22 @@ const dayOffset = computed(
         Math.floor((props.block.arrival + 9 * 3600000) / 86400000) -
         Math.floor((props.block.start + 9 * 3600000) / 86400000),
 );
+const weekdayShort = computed(() => props.block.outbound.weekday.replace('요일', ''));
+const arrivalWeekday = computed(() =>
+    new Intl.DateTimeFormat('ko-KR', {
+        weekday: 'short',
+        timeZone: 'Asia/Seoul',
+    })
+        .format(props.block.arrival)
+        .replace('요일', ''),
+);
 const segments = computed(() => {
     const b = props.block;
     return [b.outEnd - b.start, b.inStart - b.outEnd, b.arrival - b.inStart, b.end - b.arrival];
 });
 const label = computed(
     () =>
-        `${destination.value} ${props.block.outbound.to}, ${props.block.outbound.number} / ${props.block.inbound.number}, ${props.block.outbound.departureDate}, KST ${time(props.block.start)} 출발 ${time(props.block.arrival)} 귀환${dayOffset.value ? ` +${dayOffset.value}일` : ''}${props.invalid ? ', 오류 있음' : ''}. 선택 후 상세에서 기체를 배정하세요.`,
+        `${destination.value} ${props.block.outbound.to}, ${props.block.outbound.number} / ${props.block.inbound.number}, ${props.block.outbound.weekday}요일 ${props.block.outbound.departureLocal} 출발 ${time(props.block.arrival)} 귀환${dayOffset.value ? ` +${dayOffset.value}일` : ''}${props.invalid ? ', 오류 있음' : ''}. 선택 후 상세에서 기체를 배정하세요.`,
 );
 function startDrag(event) {
     event.dataTransfer.setData('text/plain', props.block.id);
