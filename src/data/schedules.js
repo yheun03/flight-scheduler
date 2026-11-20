@@ -179,17 +179,7 @@ function makeDataset(id, name, kind, rows, options = {}) {
             pairingStatus: '공항, 날짜, UTC 순서로 명시적 연결. 실제 기체 연속 운항을 의미하지 않음.',
         };
     });
-    const maintenance =
-        options.maintenance === false
-            ? []
-            : scenarioAircraft.map((a, i) => ({
-                  id: `maintenance-${a.id}`,
-                  aircraftId: a.id,
-                  airport: a.startAirport,
-                  start: Date.parse(`2026-11-18T${String(2 + i).padStart(2, '0')}:00:00+09:00`),
-                  end: Date.parse(`2026-11-18T${String(4 + i).padStart(2, '0')}:00:00+09:00`),
-                  required: true,
-              }));
+    const maintenance = [];
     return {
         id,
         name,
@@ -452,4 +442,4 @@ export const practice = makeDataset(
     'fiction',
     practiceRows,
 );
-export const datasets = [tutorial, airPremia, practice];
+export const datasets = [airPremia, tutorial, practice];

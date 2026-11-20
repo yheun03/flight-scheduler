@@ -20,17 +20,17 @@
     >
         <span class="flight-block__heading">
             <strong>
-                {{ destination }}
-                <span>{{ block.outbound.to }}</span>
+                <template v-if="compact">{{ block.outbound.to }}</template>
+                <template v-else>
+                    {{ destination }}
+                    <span>{{ block.outbound.to }}</span>
+                </template>
             </strong>
-            <span v-if="invalid" class="flight-block__warning">! 오류</span>
+            <span v-if="invalid" class="flight-block__warning">{{ compact ? '!' : '! 오류' }}</span>
             <span v-else class="flight-block__grip" aria-hidden="true">⠿</span>
         </span>
-        <span class="flight-block__numbers">
+        <span v-if="!compact" class="flight-block__numbers">
             <span>{{ block.outbound.number }} / {{ block.inbound.number }}</span>
-            <span v-if="compact" class="flight-block__compact-time">
-                {{ weekdayShort }} {{ block.outbound.departureLocal }}
-            </span>
         </span>
         <span v-if="!compact" class="flight-block__route">
             {{ block.outbound.from }} → {{ block.outbound.to }} → {{ block.inbound.to }}
@@ -91,7 +91,7 @@ const segments = computed(() => {
 });
 const label = computed(
     () =>
-        `${destination.value} ${props.block.outbound.to}, ${props.block.outbound.number} / ${props.block.inbound.number}, ${props.block.outbound.weekday}요일 ${props.block.outbound.departureLocal} 출발 ${time(props.block.arrival)} 귀환${dayOffset.value ? ` +${dayOffset.value}일` : ''}${props.invalid ? ', 오류 있음' : ''}. 선택 후 상세에서 기체를 배정하세요.`,
+        `${destination.value} ${props.block.outbound.to}. 왕편 ${props.block.outbound.number}, 복편 ${props.block.inbound.number}. ${props.block.outbound.weekday}요일 ${props.block.outbound.departureLocal} 출발, ${time(props.block.arrival)} 귀환${dayOffset.value ? ` +${dayOffset.value}일` : ''}${props.invalid ? ', 오류 있음' : ''}.`,
 );
 function startDrag(event) {
     event.dataTransfer.setData('text/plain', props.block.id);

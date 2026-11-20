@@ -74,14 +74,14 @@
             <main v-if="currentPage === 'scheduler'" id="main" class="workspace">
                 <div class="page-heading">
                     <div>
-                        <div class="eyebrow">AIRLINE OPERATIONS PUZZLE</div>
+                        <div class="eyebrow">{{ dataset.airlineCode }} ROTATION SIMULATOR</div>
                         <h1>
-                            나만의 운항을 설계하세요
+                            {{ dataset.airlineName }} 로테이션 시뮬레이터
                             <span class="page-heading__plane">✈</span>
                         </h1>
                         <p>
-                            정해진 시간표, {{ dataset.aircraft.length }}대의 가상 항공기. 빈틈없는 한 주를
-                            완성해 보세요.
+                            7일 반복 시간표를 {{ dataset.aircraft.length }}대의 가상 항공기에 배정하세요.
+                            모든 시각은 KST 기준입니다.
                         </p>
                     </div>
                     <button class="scenario-pill" @click="openDialog('levels')">
@@ -187,6 +187,25 @@
                                 <span class="week-label">요일 · 시각 기준</span>
                             </h2>
                         </div>
+                        <div
+                            class="timeline-status"
+                            :class="{
+                                'timeline-status--complete': !unassigned.length && !conflicts.length,
+                                'timeline-status--warning': unassigned.length || conflicts.length,
+                            }"
+                        >
+                            <span class="timeline-status__dot"></span>
+                            <span>
+                                <strong>
+                                    {{
+                                        !unassigned.length && !conflicts.length
+                                            ? '운항 준비 완료'
+                                            : '스케줄 조정 필요'
+                                    }}
+                                </strong>
+                                <small>미배정 {{ unassigned.length }}편 · 오류 {{ conflicts.length }}건</small>
+                            </span>
+                        </div>
                     </div>
                     <div class="actionbar">
                         <div class="actionbar__group">
@@ -239,6 +258,28 @@
                         </span>
                         <span class="timezone-label">기준 시간 KST (UTC+9)</span>
                     </div>
+                    <div v-if="selected && assignedPlane(selected.id)" class="timeline-selection">
+                        <div>
+                            <strong>{{ selected.outbound.to }}</strong>
+                            <span>{{ airports[selected.outbound.to].name }}</span>
+                        </div>
+                        <span>
+                            <small>편명</small>
+                            {{ selected.outbound.number }} / {{ selected.inbound.number }}
+                        </span>
+                        <span>
+                            <small>출발</small>
+                            {{ selected.outbound.weekday }} {{ selected.outbound.departureLocal }}
+                        </span>
+                        <span>
+                            <small>귀환</small>
+                            {{ formatTime(selected.arrival) }}
+                        </span>
+                        <span>
+                            <small>배정 기체</small>
+                            {{ assignedPlane(selected.id) }}
+                        </span>
+                    </div>
                     <div
                         ref="timelineScroll"
                         class="timeline-scroll"
@@ -282,7 +323,11 @@
                                 v-for="plane in dataset.aircraft"
                                 :key="plane.id"
                                 class="timeline__row"
-                                :class="{ 'timeline__row--drop': dragOver === plane.id }"
+                                :class="{
+                                    'timeline__row--drop': dragOver === plane.id,
+                                    'timeline__row--selected':
+                                        selectedId && assignedPlane(selectedId) === plane.id,
+                                }"
                                 :style="{ minHeight: rowHeight(plane.id) + 'px' }"
                                 @dragover.prevent="dragOver = plane.id"
                                 @dragleave="dragOver = null"
@@ -325,7 +370,7 @@
                                         :invalid="hasIssue(block.id)"
                                         :style="{
                                             ...position(block),
-                                            top: 12 + laneFor(block.id, plane.id) * 73 + 'px',
+                                            top: 7 + laneFor(block.id, plane.id) * 38 + 'px',
                                         }"
                                         @select="selectBlock"
                                         @drag-start="dragId = $event"
@@ -358,7 +403,7 @@
                                 <i class="legend__ready"></i>
                                 귀환 후 준비
                             </span>
-                            <span>
+                            <span v-if="dataset.maintenance.length">
                                 <i class="legend__maintenance"></i>
                                 필수 정비
                             </span>
@@ -920,7 +965,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppIcon from './components/AppIcon.vue';
 import FlightBlock from './components/FlightBlock.vue';
-import { airports, datasets, sources, tutorial } from './data/schedules';
+import { airPremia, airports, datasets, sources, tutorial } from './data/schedules';
 import { airlineSchedules } from './data/airlineSchedules';
 import {
     evaluate,
@@ -935,7 +980,7 @@ import {
     HOUR,
 } from './game';
 
-const dataset = ref(tutorial);
+const dataset = ref(airPremia);
 const currentPage = ref('scheduler');
 const selectedAirlineId = ref('airseoul');
 const departureGroupFilter = ref('all');
@@ -985,7 +1030,14 @@ const filteredAirlineSchedules = computed(() =>
 const result = computed(() => evaluate(dataset.value, assignments.value, repeat.value));
 const conflicts = computed(() => result.value.issues.filter((i) => i.code !== 'unassigned'));
 const unassigned = computed(() =>
-    blocks.value.filter((b) => !assignments.value.some((a) => a.rotationId === b.id)),
+    blocks.value
+        .filter((b) => !assignments.value.some((a) => a.rotationId === b.id))
+        .sort(
+            (a, b) =>
+                a.start - b.start ||
+                a.outbound.departureLocal.localeCompare(b.outbound.departureLocal) ||
+                a.outbound.number.localeCompare(b.outbound.number),
+        ),
 );
 const filteredUnassigned = computed(() =>
     unassigned.value.filter((b) => airportFilter.value === 'all' || b.outbound.from === airportFilter.value),
@@ -1047,7 +1099,7 @@ function laneFor(blockId, id) {
     return lanesFor(id)[blockId] || 0;
 }
 function rowHeight(id) {
-    return 91 + Math.max(0, ...Object.values(lanesFor(id))) * 73;
+    return 46 + Math.max(0, ...Object.values(lanesFor(id))) * 38;
 }
 function position(block) {
     const start = Math.max(block.start, rangeStart.value);
