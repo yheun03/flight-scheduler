@@ -167,32 +167,6 @@
                                 <span class="week-label">2026.11.16 – 11.22</span>
                             </h2>
                         </div>
-                        <div class="timeline-toolbar__actions">
-                            <div class="segmented" aria-label="시간축 확대">
-                                <button
-                                    :class="{ 'is-active': view === 'week' }"
-                                    :aria-pressed="view === 'week'"
-                                    @click="view = 'week'"
-                                >
-                                    주간
-                                </button>
-                                <button
-                                    :class="{ 'is-active': view === 'day' }"
-                                    :aria-pressed="view === 'day'"
-                                    @click="view = 'day'"
-                                >
-                                    하루 확대
-                                </button>
-                            </div>
-                            <label v-if="view === 'day'" class="day-select">
-                                <span class="sr-only">표시 날짜</span>
-                                <select v-model.number="dayIndex">
-                                    <option v-for="(day, i) in days" :key="i" :value="i">
-                                        {{ day.label }}
-                                    </option>
-                                </select>
-                            </label>
-                        </div>
                     </div>
                     <div class="actionbar">
                         <div class="actionbar__group">
@@ -238,6 +212,7 @@
                         <span class="timezone-label">기준 시간 KST (UTC+9)</span>
                     </div>
                     <div
+                        ref="timelineScroll"
                         class="timeline-scroll"
                         tabindex="0"
                         aria-label="항공기 운항 타임라인, 가로 스크롤 가능"
@@ -246,8 +221,8 @@
                             class="timeline"
                             :style="{
                                 '--track-width': trackWidth + 'px',
-                                '--day-width': trackWidth / (view === 'week' ? 7 : 1) + 'px',
-                                '--hour-width': trackWidth / (view === 'week' ? 168 : 24) + 'px',
+                                '--day-width': trackWidth / 7 + 'px',
+                                '--hour-width': trackWidth / 168 + 'px',
                             }"
                         >
                             <div class="timeline__header">
@@ -257,7 +232,7 @@
                                 </div>
                                 <div class="timeline__dates">
                                     <div
-                                        v-for="day in visibleDays"
+                                        v-for="day in days"
                                         :key="day.index"
                                         class="timeline__date"
                                         :class="{ 'timeline__date--weekend': day.index > 4 }"
@@ -273,25 +248,7 @@
                                             </small>
                                         </span>
                                         <div class="timeline__hours">
-                                            <span
-                                                v-for="hour in view === 'week'
-                                                    ? ['00', '06', '12', '18']
-                                                    : [
-                                                          '00:00',
-                                                          '02:00',
-                                                          '04:00',
-                                                          '06:00',
-                                                          '08:00',
-                                                          '10:00',
-                                                          '12:00',
-                                                          '14:00',
-                                                          '16:00',
-                                                          '18:00',
-                                                          '20:00',
-                                                          '22:00',
-                                                      ]"
-                                                :key="hour"
-                                            >
+                                            <span v-for="hour in ['00', '06', '12', '18']" :key="hour">
                                                 {{ hour }}
                                             </span>
                                         </div>
@@ -339,6 +296,7 @@
                                         v-for="block in planeBlocks(plane.id)"
                                         :key="block.id"
                                         :block="block"
+                                        :data-rotation-id="block.id"
                                         compact
                                         :selected="selectedId === block.id"
                                         :invalid="hasIssue(block.id)"
@@ -545,8 +503,12 @@
                                 <br />
                                 준비 시간, 정비와 기체 수는 게임 설정입니다.
                             </p>
-                            <button class="text-button" @click="focusSelectedDay">
-                                이 왕복편 날짜로 확대
+                            <button
+                                class="text-button"
+                                :disabled="!assignedPlane(selected.id)"
+                                @click="focusSelectedBlock"
+                            >
+                                타임라인에서 배정 위치 보기
                             </button>
                         </template>
                         <div v-else class="empty-state">
@@ -574,7 +536,7 @@
                                     v-if="blocks.some((b) => b.id === issue.blockId)"
                                     @click="
                                         selectBlock(issue.blockId);
-                                        focusSelectedDay();
+                                        focusSelectedBlock();
                                     "
                                 >
                                     {{ issue.message }}
@@ -842,7 +804,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppIcon from './components/AppIcon.vue';
 import FlightBlock from './components/FlightBlock.vue';
 import { airports, datasets, sources, tutorial } from './data/schedules';
@@ -865,8 +827,6 @@ const playId = ref(crypto.randomUUID());
 const undoStack = ref([]);
 const redoStack = ref([]);
 const selectedId = ref(null);
-const view = ref('day');
-const dayIndex = ref(4);
 const airportFilter = ref('all');
 const dragId = ref(null);
 const dragOver = ref(null);
@@ -875,6 +835,7 @@ const storageError = ref('');
 const dialog = ref(null);
 const dialogType = ref('results');
 const timelineSection = ref(null);
+const timelineScroll = ref(null);
 let noticeTimer;
 const levels = [
     { name: '파라타항공', difficulty: '최하', note: '가상 기체 6대' },
@@ -901,10 +862,9 @@ const days = computed(() =>
         label: `11.${16 + index} (${['월', '화', '수', '목', '금', '토', '일'][index]})`,
     })),
 );
-const visibleDays = computed(() => (view.value === 'week' ? days.value : [days.value[dayIndex.value]]));
-const rangeStart = computed(() => visibleDays.value[0].start);
-const rangeEnd = computed(() => rangeStart.value + (view.value === 'week' ? 168 : 24) * HOUR);
-const trackWidth = computed(() => (view.value === 'week' ? 4032 : 1440));
+const rangeStart = computed(() => dataset.value.weekStart);
+const rangeEnd = computed(() => dataset.value.weekEnd);
+const trackWidth = 4032;
 const formatDate = (value) =>
     new Intl.DateTimeFormat('ko-KR', {
         month: '2-digit',
@@ -1010,6 +970,8 @@ function assign(id, planeId) {
     const next = assignments.value.filter((a) => a.rotationId !== id);
     if (planeId) next.push({ rotationId: id, aircraftId: planeId });
     commit(next);
+    selectedId.value = id;
+    if (planeId) focusSelectedBlock();
     toast(planeId ? `${planeId}에 왕복편을 배정했습니다.` : '왕복편을 미배정 보관함으로 옮겼습니다.');
 }
 function undo() {
@@ -1036,14 +998,16 @@ function endDrag() {
 function selectBlock(id) {
     selectedId.value = id;
 }
-function focusSelectedDay() {
-    if (!selected.value) return;
-    dayIndex.value = Math.min(
-        6,
-        Math.max(0, Math.floor((selected.value.start - dataset.value.weekStart) / (24 * HOUR))),
-    );
-    view.value = 'day';
-    scrollTimeline();
+async function focusSelectedBlock(scrollPage = true) {
+    await nextTick();
+    const timeline = timelineScroll.value;
+    const block = timeline?.querySelector(`[data-rotation-id="${selectedId.value}"]`);
+    if (!block) return;
+    const aircraftColumn = timeline.querySelector('.timeline__corner').offsetWidth;
+    const offset =
+        block.getBoundingClientRect().left - timeline.getBoundingClientRect().left + timeline.scrollLeft;
+    timeline.scrollTo({ left: Math.max(0, offset - aircraftColumn - 24), behavior: 'smooth' });
+    if (scrollPage) block.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
 }
 function scrollTimeline() {
     timelineSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1056,9 +1020,8 @@ function changeDataset(id) {
     undoStack.value = [];
     redoStack.value = [];
     airportFilter.value = 'all';
-    view.value = dataset.value.kind === 'fiction' ? 'week' : 'day';
-    dayIndex.value = 4;
     restoreSession();
+    focusSelectedBlock(false);
 }
 function newPlay() {
     playId.value = crypto.randomUUID();
@@ -1160,6 +1123,7 @@ function keydown(event) {
 watch(repeat, persistSession);
 onMounted(() => {
     restoreSession();
+    focusSelectedBlock(false);
     window.addEventListener('keydown', keydown);
 });
 onBeforeUnmount(() => {
