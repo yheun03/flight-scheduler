@@ -123,13 +123,13 @@ export function validate(dataset, assignments, repeat = false) {
             );
         events.sort((a, b) => a.start - b.start);
         const boundary = dataset.boundaries.find((b) => b.aircraftId === plane.id);
-        let airport = boundary?.previous.airport ?? plane.startAirport;
+        let airport = null;
         if (!repeat && events.length && boundary && events[0].start < boundary.previous.ready)
             add('boundary-start', `${plane.id} 직전 주 준비 시간 부족`, plane.id, events[0].id);
         for (let i = 0; i < events.length; i++) {
             const e = events[i];
             const relevant = !repeat || e.shift === 0;
-            if (relevant && airport !== e.from)
+            if (relevant && airport && airport !== e.from)
                 add(
                     'airport',
                     `${plane.id} ${airport}에서 ${e.from}(으)로 자동 이동할 수 없습니다.`,
@@ -159,8 +159,6 @@ export function validate(dataset, assignments, repeat = false) {
             const last = events.at(-1);
             if (last.end > boundary.next.departure)
                 add('boundary-end', `${plane.id} 다음 주 출발 전 준비 시간 부족`, plane.id, last.id);
-            if (airport !== boundary.next.airport)
-                add('boundary-airport', `${plane.id} 다음 주 시작 공항 불일치`, plane.id, last.id);
         }
     }
     return issues.filter(

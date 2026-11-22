@@ -85,7 +85,14 @@
                         </p>
                     </div>
                     <button class="scenario-pill" @click="openDialog('levels')">
-                        <span class="scenario-pill__logo">{{ dataset.airlineCode }}</span>
+                        <span class="scenario-pill__logo">
+                            <img
+                                v-if="scenarioAirline"
+                                :src="scenarioAirline.logo"
+                                :alt="`${dataset.airlineName} 로고`"
+                            />
+                            <template v-else>{{ dataset.airlineCode }}</template>
+                        </span>
                         <span>
                             <strong>{{ dataset.airlineName }}</strong>
                             <small>{{ dataset.difficulty }} / 가상 기체 {{ dataset.aircraft.length }}대</small>
@@ -230,12 +237,27 @@
                         <div class="actionbar__group">
                             <button class="button" @click="save">
                                 <AppIcon name="save" />
-                                저장
+                                로컬 저장
                             </button>
                             <button class="button" @click="load">
                                 <AppIcon name="folder" />
-                                불러오기
+                                로컬 불러오기
                             </button>
+                            <button class="button" @click="saveCsv">
+                                <AppIcon name="save" />
+                                CSV 저장
+                            </button>
+                            <button class="button" @click="csvInput?.click()">
+                                <AppIcon name="folder" />
+                                CSV 불러오기
+                            </button>
+                            <input
+                                ref="csvInput"
+                                class="sr-only"
+                                type="file"
+                                accept=".csv,text/csv"
+                                @change="loadCsv"
+                            />
                             <button
                                 v-if="dataset.airlineCode === 'YP'"
                                 class="button"
@@ -292,7 +314,7 @@
                             <div class="timeline__header">
                                 <div class="timeline__corner">
                                     항공기
-                                    <small>가상 기체 / 시작 공항</small>
+                                    <small>가상 기체 / 배정 현황</small>
                                 </div>
                                 <div class="timeline__dates">
                                     <div
@@ -338,7 +360,6 @@
                                     <div>
                                         <strong>{{ plane.id }}</strong>
                                         <small>
-                                            {{ plane.startAirport }}
                                             <span>{{ loadFor(plane.id).count }}개 왕복</span>
                                         </small>
                                     </div>
@@ -479,7 +500,7 @@
                                             :key="plane.id"
                                             :value="plane.id"
                                         >
-                                            {{ plane.id }} · {{ plane.startAirport }} 시작
+                                            {{ plane.id }}
                                         </option>
                                     </select>
                                 </label>
@@ -583,7 +604,7 @@
                                         :key="plane.id"
                                         :value="plane.id"
                                     >
-                                        {{ plane.id }} / {{ plane.startAirport }} 시작
+                                        {{ plane.id }}
                                     </option>
                                 </select>
                             </label>
@@ -665,7 +686,12 @@
                     <button class="button" @click="storageError = ''">닫기</button>
                 </div>
             </main>
-            <main v-else id="main" class="workspace flight-catalog">
+            <main
+                v-else
+                id="main"
+                class="workspace flight-catalog"
+                :class="`flight-catalog--${selectedAirline.theme}`"
+            >
                 <div class="page-heading">
                     <div>
                         <div class="eyebrow">FLIGHT NUMBER CATALOG</div>
@@ -683,8 +709,13 @@
                             :class="{ 'button--primary': selectedAirlineId === airline.id }"
                             @click="selectedAirlineId = airline.id"
                         >
-                            {{ airline.name }}
-                            <small>{{ airline.code }}</small>
+                            <span class="flight-catalog__logo">
+                                <img :src="airline.logo" alt="" />
+                            </span>
+                            <span>
+                                {{ airline.name }}
+                                <small>{{ airline.code }}</small>
+                            </span>
                         </button>
                     </div>
                     <label>
@@ -907,7 +938,7 @@
                             <p>{{ level.note }}</p>
                         </div>
                         <span class="badge" :class="{ 'badge--neutral': !level.datasetId }">
-                            {{ level.datasetId ? (level.datasetId === dataset.id ? '선택됨' : '플레이') : '준비 중' }}
+                            {{ level.datasetId ? (level.datasetId === dataset.id ? '선택됨' : '플레이') : '미출시' }}
                         </span>
                     </article>
                 </div>
@@ -945,9 +976,9 @@
                     <li>
                         <strong>진행 상황을 저장하세요.</strong>
                         <p>
-                            저장과 불러오기는 이 브라우저의 localStorage를 사용합니다. 한 번의 배정 변경은 한
-                            번의 되돌리기로 복원됩니다. Ctrl 또는 ⌘ + Z, Shift + Z를 지원합니다. 새로고침 시
-                            현재 탭의 진행도 복원합니다.
+                            로컬 저장과 불러오기는 이 브라우저의 localStorage를 사용하며, CSV 파일로도
+                            저장하고 불러올 수 있습니다. 한 번의 배정 변경은 한 번의 되돌리기로 복원됩니다.
+                            Ctrl 또는 ⌘ + Z, Shift + Z를 지원합니다. 새로고침 시 현재 탭의 진행도 복원합니다.
                         </p>
                     </li>
                 </ol>
@@ -999,6 +1030,7 @@ const dialog = ref(null);
 const dialogType = ref('results');
 const timelineSection = ref(null);
 const timelineScroll = ref(null);
+const csvInput = ref(null);
 let noticeTimer;
 const levels = [
     { name: '파라타항공', difficulty: '최하', note: '가상 기체 6대' },
@@ -1021,6 +1053,9 @@ const levels = [
 const blocks = computed(() => getBlocks(dataset.value));
 const selectedAirline = computed(
     () => airlineSchedules.find((airline) => airline.id === selectedAirlineId.value) || airlineSchedules[0],
+);
+const scenarioAirline = computed(() =>
+    airlineSchedules.find((airline) => airline.code === dataset.value.airlineCode),
 );
 const filteredAirlineSchedules = computed(() =>
     selectedAirline.value.schedules.filter(
@@ -1213,18 +1248,31 @@ function scrollTimeline() {
 function changeDataset(id) {
     persistSession();
     dataset.value = datasets.find((d) => d.id === id) || tutorial;
+    selectedAirlineId.value = scenarioAirline.value?.id || selectedAirlineId.value;
     repeat.value = false;
     playId.value = crypto.randomUUID();
     undoStack.value = [];
     redoStack.value = [];
     airportFilter.value = 'all';
+    updateShareUrl();
     restoreSession();
     focusSelectedBlock(false);
 }
 function selectLevel(level) {
-    if (!level.datasetId) return;
+    if (!level.datasetId) {
+        window.alert(`${level.name} 시나리오는 아직 미출시입니다.`);
+        return;
+    }
     changeDataset(level.datasetId);
     dialog.value.close();
+}
+function updateShareUrl() {
+    const airline = airlineSchedules.find((item) => item.code === dataset.value.airlineCode);
+    if (!airline) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('airline', airline.id);
+    url.searchParams.set('scenario', dataset.value.id);
+    window.history.replaceState(null, '', url);
 }
 function newPlay() {
     playId.value = crypto.randomUUID();
@@ -1267,6 +1315,94 @@ function load() {
         toast('저장된 운항 계획을 불러왔습니다.');
     } catch (error) {
         storageError.value = error.message;
+    }
+}
+function escapeCsv(value) {
+    const text = String(value ?? '');
+    return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+function parseCsvRows(raw) {
+    const rows = [];
+    let row = [];
+    let value = '';
+    let quoted = false;
+    for (let index = 0; index < raw.length; index += 1) {
+        const char = raw[index];
+        if (quoted && char === '"' && raw[index + 1] === '"') {
+            value += '"';
+            index += 1;
+        } else if (char === '"') {
+            quoted = !quoted;
+        } else if (char === ',' && !quoted) {
+            row.push(value);
+            value = '';
+        } else if ((char === '\n' || char === '\r') && !quoted) {
+            if (char === '\r' && raw[index + 1] === '\n') index += 1;
+            row.push(value);
+            if (row.some((cell) => cell !== '')) rows.push(row);
+            row = [];
+            value = '';
+        } else {
+            value += char;
+        }
+    }
+    if (quoted) throw new Error('CSV 파일의 따옴표 형식이 올바르지 않습니다.');
+    row.push(value);
+    if (row.some((cell) => cell !== '')) rows.push(row);
+    return rows;
+}
+function saveCsv() {
+    const saved = makeSave(dataset.value, assignments.value, playId.value, repeat.value);
+    const header = ['version', 'datasetId', 'playId', 'repeat', 'savedAt', 'rotationId', 'aircraftId'];
+    const items = saved.assignments.length ? saved.assignments : [{ rotationId: '', aircraftId: '' }];
+    const rows = items.map((assignment) => [
+        saved.version,
+        saved.datasetId,
+        saved.playId,
+        saved.repeat,
+        saved.savedAt,
+        assignment.rotationId,
+        assignment.aircraftId,
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `flight-scheduler-${dataset.value.airlineCode}-${saved.savedAt.slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast('운항 계획을 CSV 파일로 저장했습니다.');
+}
+async function loadCsv(event) {
+    const [file] = event.target.files;
+    if (!file) return;
+    try {
+        const rows = parseCsvRows((await file.text()).replace(/^\uFEFF/, ''));
+        const header = rows.shift();
+        const expected = ['version', 'datasetId', 'playId', 'repeat', 'savedAt', 'rotationId', 'aircraftId'];
+        if (!header || expected.some((name, index) => header[index] !== name) || !rows.length)
+            throw new Error('지원하지 않는 CSV 형식입니다.');
+        const [first] = rows;
+        const saved = {
+            version: Number(first[0]),
+            datasetId: first[1],
+            playId: first[2],
+            repeat: first[3] === 'true',
+            savedAt: first[4],
+            assignments: rows
+                .filter((row) => row[5] || row[6])
+                .map((row) => ({ rotationId: row[5], aircraftId: row[6] })),
+        };
+        const parsed = parseSave(JSON.stringify(saved), dataset.value);
+        commit(parsed.assignments);
+        playId.value = parsed.playId;
+        repeat.value = parsed.repeat;
+        persistSession();
+        toast('CSV 파일의 운항 계획을 불러왔습니다.');
+    } catch (error) {
+        storageError.value = error.message;
+    } finally {
+        event.target.value = '';
     }
 }
 function clearSave() {
@@ -1334,6 +1470,15 @@ function keydown(event) {
 }
 watch(repeat, persistSession);
 onMounted(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedAirline = airlineSchedules.find((airline) => airline.id === params.get('airline'));
+    const sharedDataset = datasets.find((item) => item.id === params.get('scenario'));
+    const airlineDataset = datasets.find((item) => item.airlineCode === sharedAirline?.code);
+    if (sharedDataset && (!sharedAirline || sharedDataset.airlineCode === sharedAirline.code))
+        dataset.value = sharedDataset;
+    else if (airlineDataset) dataset.value = airlineDataset;
+    if (sharedAirline) selectedAirlineId.value = sharedAirline.id;
+    updateShareUrl();
     restoreSession();
     focusSelectedBlock(false);
     window.addEventListener('keydown', keydown);

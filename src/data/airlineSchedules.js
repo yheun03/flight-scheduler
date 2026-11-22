@@ -11,7 +11,28 @@ function parseCsv(csv) {
 }
 
 export const airlineSchedules = [
-    { id: 'airseoul', code: 'RS', name: '에어서울', schedules: parseCsv(airSeoulCsv) },
-    { id: 'parata', code: 'WE', name: '파라타항공', schedules: parseCsv(parataCsv) },
-    { id: 'airpremia', code: 'YP', name: '에어프레미아', schedules: parseCsv(airPremiaCsv) },
+    {
+        id: 'airseoul',
+        code: 'RS',
+        name: '에어서울',
+        logo: `${import.meta.env.BASE_URL}airline-logos/air-seoul.svg`,
+        theme: 'mint',
+        schedules: parseCsv(airSeoulCsv),
+    },
+    {
+        id: 'parata',
+        code: 'WE',
+        name: '파라타항공',
+        logo: `${import.meta.env.BASE_URL}airline-logos/parata-air.svg`,
+        theme: 'sky',
+        schedules: parseCsv(parataCsv),
+    },
+    {
+        id: 'airpremia',
+        code: 'YP',
+        name: '에어프레미아',
+        logo: `${import.meta.env.BASE_URL}airline-logos/air-premia.svg`,
+        theme: 'sunrise',
+        schedules: parseCsv(airPremiaCsv),
+    },
 ];

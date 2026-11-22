@@ -162,12 +162,54 @@ h2 {
     gap: 16px;
     margin-bottom: 18px;
 }
+.flight-catalog {
+    min-height: calc(100vh - 64px);
+    transition: background-color 0.2s ease;
+    &--mint {
+        --airline-accent: #159879;
+        background: #eaf8f4;
+    }
+    &--sky {
+        --airline-accent: #336fa8;
+        background: #edf5fc;
+    }
+    &--sunrise {
+        --airline-accent: #c96954;
+        background: #fff1ec;
+    }
+}
 .flight-catalog__airlines {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    .button {
+        justify-content: flex-start;
+        padding: 6px 12px 6px 7px;
+        text-align: left;
+    }
+    .button--primary {
+        background: var(--airline-accent);
+        border-color: var(--airline-accent);
+    }
     small {
+        display: block;
         opacity: 0.7;
+    }
+}
+.flight-catalog__logo {
+    display: grid;
+    place-items: center;
+    width: 58px;
+    height: 34px;
+    padding: 5px;
+    border-radius: 5px;
+    background: #fff;
+    overflow: hidden;
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
 }
 .flight-catalog__panel {
@@ -375,6 +417,10 @@ h1 {
     }
 }
 .scenario-pill__logo {
+    display: grid;
+    place-items: center;
+    width: 76px;
+    height: 36px;
     color: #11693f;
     font-size: 0.9rem;
     font-style: italic;
@@ -383,6 +429,12 @@ h1 {
     letter-spacing: -0.08em;
     border-right: 1px solid $line;
     padding-right: 13px;
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
 }
 .scenario-bar {
     @include flex-center;

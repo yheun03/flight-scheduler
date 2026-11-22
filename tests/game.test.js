@@ -42,8 +42,18 @@ test('8개 필수 왕복을 6대에 배정하면 오류 없이 80점 이상 클�
     assert.ok(result.score >= 80);
     assert.ok(result.cleared);
 });
-test('공항 불일치: GMP 기체에 ICN 왕복을 넣어도 자동 이동하지 않는다', () => {
-    assert.ok(codes(tutorial, [assignment(tutorial, 0, 'AS05')]).includes('airport'));
+test('첫 왕복의 출발 공항은 기체마다 고정하지 않는다', () => {
+    assert.ok(!codes(tutorial, [assignment(tutorial, 0, 'AS05')]).includes('airport'));
+});
+test('연속 왕복의 도착 공항과 다음 출발 공항이 다르면 오류로 처리한다', () => {
+    const d = copy(tutorial);
+    const outbound = d.flights.find((f) => f.id === d.rotations[4].outboundId);
+    const inbound = d.flights.find((f) => f.id === d.rotations[4].inboundId);
+    outbound.scheduledDeparture = '2026-11-20T13:30:00+09:00';
+    outbound.scheduledArrival = '2026-11-20T14:45:00+09:00';
+    inbound.scheduledDeparture = '2026-11-20T15:15:00+09:00';
+    inbound.scheduledArrival = '2026-11-20T16:30:00+09:00';
+    assert.ok(codes(d, [assignment(d, 0, 'AS01'), assignment(d, 4, 'AS01')]).includes('airport'));
 });
 test('같은 기체의 겹치는 왕복과 중복 배정을 각각 검출한다', () => {
     assert.ok(
@@ -97,16 +107,14 @@ test('나트랑 현지 시각을 UTC로 계산하고 자정과 화면 경계 이
     assert.ok(b.end > practice.weekEnd);
     assert.ok(b.arrival > b.inStart);
 });
-test('직전 주 준비 완료, 다음 주 출발, 종료 공항 경계를 검사한다', () => {
+test('직전 주 준비 완료와 다음 주 출발 시간 경계를 검사한다', () => {
     const d = copy(tutorial);
     d.boundaries[0].previous.ready = getBlocks(d)[0].start + MINUTE;
     assert.ok(codes(d, [assignment(d, 0, 'AS01')]).includes('boundary-start'));
     d.boundaries[0].previous.ready = d.weekStart;
     d.boundaries[0].next.departure = getBlocks(d)[0].end - MINUTE;
-    d.boundaries[0].next.airport = 'GMP';
     const errors = codes(d, [assignment(d, 0, 'AS01')]);
     assert.ok(errors.includes('boundary-end'));
-    assert.ok(errors.includes('boundary-airport'));
 });
 test('주간 반복은 직전 주 일요일 심야와 이번 주 월요일을 함께 검사한다', () => {
     const d = copy(practice);
