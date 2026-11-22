@@ -258,11 +258,7 @@
                                 accept=".csv,text/csv"
                                 @change="loadCsv"
                             />
-                            <button
-                                v-if="dataset.airlineCode === 'YP'"
-                                class="button"
-                                @click="showAnswer"
-                            >
+                            <button v-if="dataset.kind !== 'fiction'" class="button" @click="showAnswer">
                                 <AppIcon name="grid" />
                                 정답 보기
                             </button>
@@ -612,7 +608,9 @@
                                 {{
                                     dataset.kind === 'fiction'
                                         ? '가상 연습용 시간표'
-                                        : '2026.11.20 기준 주간 운항 자료'
+                                        : dataset.id === 'airseoul-full-20261122-v1'
+                                          ? '2026.11.22 기준 전체 운항 자료'
+                                          : '2026.11.20 기준 주간 운항 자료'
                                 }}
                                 <br />
                                 준비 시간, 정비와 기체 수는 게임 설정입니다.
@@ -696,7 +694,7 @@
                     <div>
                         <div class="eyebrow">FLIGHT NUMBER CATALOG</div>
                         <h1>항공사별 운항 편명</h1>
-                        <p>2026.11.20 기준 정기 운항 편명과 요일·현지 시각입니다.</p>
+                        <p>2026.11.22 기준 정기 운항 편명과 요일·현지 시각입니다.</p>
                     </div>
                     <span class="badge">오늘 기준</span>
                 </div>
@@ -751,7 +749,11 @@
                                     <td><strong>{{ flight.flight_number }}</strong></td>
                                     <td>{{ flight.origin_name }} <small>{{ flight.origin_code }}</small></td>
                                     <td>{{ flight.destination_name }} <small>{{ flight.destination_code }}</small></td>
-                                    <td><span class="badge badge--neutral">{{ flight.operation_pattern }}</span></td>
+                                    <td>
+                                        <span class="badge badge--neutral">
+                                            주 {{ flight.weekly_frequency }}회 · {{ flight.operation_pattern }}
+                                        </span>
+                                    </td>
                                     <td>{{ flight.departure_time_local }} → {{ flight.arrival_time_local }}</td>
                                 </tr>
                             </tbody>
@@ -996,7 +998,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppIcon from './components/AppIcon.vue';
 import FlightBlock from './components/FlightBlock.vue';
-import { airPremia, airports, datasets, sources, tutorial } from './data/schedules';
+import { airPremia, airports, datasets, sources } from './data/schedules';
 import { airlineSchedules } from './data/airlineSchedules';
 import {
     evaluate,
@@ -1037,14 +1039,14 @@ const levels = [
     {
         name: '에어프레미아',
         difficulty: '최하',
-        note: '가상 기체 9대 / 중·장거리 주간 운항',
-        datasetId: 'airpremia-weekly-20261120-v1',
+        note: '실등록 기체 9대 / 중·장거리 주간 운항',
+        datasetId: 'airpremia-weekly-20261122-v2',
     },
     {
         name: '에어서울',
-        difficulty: '하',
-        note: '가상 기체 6대 / 부분 시간표 튜토리얼',
-        datasetId: 'airseoul-partial-20261120-v1',
+        difficulty: '중',
+        note: 'HL 등록기호 7대 / 편명별 운항 요일을 반영한 월~일 스케줄',
+        datasetId: 'airseoul-weekly-20261122-v2',
     },
     { name: '에어부산', difficulty: '상', note: '넓어지는 노선 네트워크' },
     { name: '아시아나항공', difficulty: '실무', note: '마스터 3회 클리어 시 해금' },
@@ -1247,7 +1249,7 @@ function scrollTimeline() {
 }
 function changeDataset(id) {
     persistSession();
-    dataset.value = datasets.find((d) => d.id === id) || tutorial;
+    dataset.value = datasets.find((d) => d.id === id) || airPremia;
     selectedAirlineId.value = scenarioAirline.value?.id || selectedAirlineId.value;
     repeat.value = false;
     playId.value = crypto.randomUUID();
@@ -1456,7 +1458,7 @@ function showAnswer() {
     try {
         commit(solveSchedule(dataset.value));
         selectedId.value = blocks.value[0]?.id || null;
-        toast('2026.11.20 기준 에어프레미아 주간 스케줄로 자동 배정했습니다.');
+        toast(`${dataset.value.airlineName} 운항 스케줄로 자동 배정했습니다.`);
     } catch (error) {
         toast(error.message);
     }

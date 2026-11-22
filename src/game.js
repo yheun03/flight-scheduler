@@ -30,9 +30,11 @@ export function getBlocks(dataset) {
 
 export function solveSchedule(dataset) {
     const blocks = getBlocks(dataset).sort((a, b) => a.start - b.start || a.end - b.end);
+    const hasMultipleBases = new Set(blocks.map((block) => block.outbound.from)).size > 1;
     const states = dataset.aircraft.map((aircraft) => ({
         aircraft,
         end: dataset.weekStart,
+        airport: null,
         hours: aircraft.initialHours,
         cycles: aircraft.initialCycles,
         count: 0,
@@ -46,16 +48,25 @@ export function solveSchedule(dataset) {
                 );
                 return (
                     state.end <= block.start &&
+                    (!state.airport || state.airport === block.outbound.from) &&
                     state.hours + block.hours <= dataset.rules.maxHours &&
                     state.cycles + block.cycles <= dataset.rules.maxCycles &&
                     !maintenance.some((item) => item.start < block.end && item.end > block.start)
                 );
             })
-            .sort((a, b) => a.count - b.count || b.end - a.end || a.hours - b.hours);
+            .sort(
+                (a, b) =>
+                    (hasMultipleBases
+                        ? Number(!a.airport) - Number(!b.airport) || a.count - b.count
+                        : a.count - b.count || Number(!a.airport) - Number(!b.airport)) ||
+                    b.end - a.end ||
+                    a.hours - b.hours,
+            );
         const state = candidates[0];
         if (!state) throw new Error(`${block.outbound.number}편을 배정할 수 있는 기체가 없습니다.`);
         assignments.push({ rotationId: block.id, aircraftId: state.aircraft.id });
         state.end = block.end;
+        state.airport = block.inbound.to;
         state.hours += block.hours;
         state.cycles += block.cycles;
         state.count += 1;

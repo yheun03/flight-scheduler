@@ -5,9 +5,14 @@ import airPremiaCsv from './airpremia-weekly-schedules.csv?raw';
 function parseCsv(csv) {
     const [header, ...lines] = csv.trim().split('\n');
     const keys = header.split(',');
-    return lines.map((line) =>
-        Object.fromEntries(line.split(',').map((value, index) => [keys[index], value])),
-    );
+    return lines.map((line) => {
+        const schedule = Object.fromEntries(line.split(',').map((value, index) => [keys[index], value]));
+        schedule.weekly_frequency = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].reduce(
+            (count, day) => count + Number(schedule[day] || 0),
+            0,
+        );
+        return schedule;
+    });
 }
 
 export const airlineSchedules = [

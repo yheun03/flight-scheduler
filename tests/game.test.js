@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tutorial, practice, sources } from '../src/data/schedules.js';
+import { airSeoulFull, tutorial, practice, sources } from '../src/data/schedules.js';
 import {
     getBlocks,
+    solveSchedule,
     validate,
     evaluate,
     makeSave,
@@ -41,6 +42,12 @@ test('8개 필수 왕복을 6대에 배정하면 오류 없이 80점 이상 클�
     assert.equal(result.completed, 8);
     assert.ok(result.score >= 80);
     assert.ok(result.cleared);
+});
+test('11월 22일 에어서울 전체 20개 왕복은 출처와 연결이 유효하고 배정 가능하다', () => {
+    assert.equal(airSeoulFull.rotations.length, 20);
+    assert.equal(airSeoulFull.flights.length, 40);
+    assert.ok(airSeoulFull.flights.every((flight) => sources.some((source) => source.id === flight.sourceId)));
+    assert.deepEqual(validate(airSeoulFull, solveSchedule(airSeoulFull)), []);
 });
 test('첫 왕복의 출발 공항은 기체마다 고정하지 않는다', () => {
     assert.ok(!codes(tutorial, [assignment(tutorial, 0, 'AS05')]).includes('airport'));

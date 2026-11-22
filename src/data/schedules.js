@@ -8,7 +8,10 @@ export const airports = {
     NRT: { name: '도쿄', timeZone: 'Asia/Tokyo', offset: '+09:00' },
     TAK: { name: '다카마쓰', timeZone: 'Asia/Tokyo', offset: '+09:00' },
     YGJ: { name: '요나고', timeZone: 'Asia/Tokyo', offset: '+09:00' },
+    DYG: { name: '장가계', timeZone: 'Asia/Shanghai', offset: '+08:00' },
+    DAD: { name: '다낭', timeZone: 'Asia/Ho_Chi_Minh', offset: '+07:00' },
     CXR: { name: '나트랑', timeZone: 'Asia/Ho_Chi_Minh', offset: '+07:00' },
+    GUM: { name: '괌', timeZone: 'Pacific/Guam', offset: '+10:00' },
     LAX: { name: '로스앤젤레스', timeZone: 'America/Los_Angeles', offset: '-08:00' },
     SFO: { name: '샌프란시스코', timeZone: 'America/Los_Angeles', offset: '-08:00' },
     EWR: { name: '뉴욕', timeZone: 'America/New_York', offset: '-05:00' },
@@ -18,6 +21,33 @@ export const airports = {
     HKG: { name: '홍콩', timeZone: 'Asia/Hong_Kong', offset: '+08:00' },
 };
 export const sources = [
+    {
+        id: 'airseoul-icn-20261122',
+        title: '인천공항 2026.11.22 에어서울 출발편',
+        sourceUrl: 'https://nowboarding.kr/airport/icn/departures',
+        checkedAt: '2026-11-22',
+        appliesTo: '2026-11-22 인천 출발 16편',
+        status: '공항 운항 자료 대조 완료',
+        note: '인천공항 실시간 운항 자료에서 편명, 목적지와 예정 출발 시각을 전편 대조했습니다.',
+    },
+    {
+        id: 'airseoul-gmp-20261122',
+        title: '김포공항 2026.11.22 에어서울 출발편',
+        sourceUrl: 'https://nowboarding.kr/airport/gmp/departures',
+        checkedAt: '2026-11-22',
+        appliesTo: '2026-11-22 김포 출발 4편',
+        status: '공항 운항 자료 대조 완료',
+        note: '한국공항공사 기반 실시간 운항 자료에서 김포-제주 4편의 편명과 예정 시각을 대조했습니다.',
+    },
+    {
+        id: 'airseoul-live-20261122',
+        title: '에어서울 2026.11.22 전체 예정편',
+        sourceUrl: 'https://kr.trip.com/flights/status/rs/',
+        checkedAt: '2026-11-22',
+        appliesTo: '2026-11-22 출도착 및 익일 귀국편',
+        status: '36편 운항 목록 대조 완료',
+        note: '당일 예정편 목록과 개별 편 상태에서 출도착 공항 및 현지 예정 시각을 교차 확인했습니다. 실제 지연 시각은 사용하지 않았습니다.',
+    },
     {
         id: 'weekly-catalog',
         title: '항공사별 주간 운항 편명 데이터',
@@ -58,10 +88,37 @@ export const sources = [
         id: 'renumber',
         title: '에어서울 운항 편명 변경 공지',
         sourceUrl: 'https://flyairseoul.com/CM/ko/noticeContent.do?board_id=notice&seq=11219',
-        checkedAt: '2026-11-20',
+        checkedAt: '2026-11-22',
         appliesTo: '2026-10-25 이후',
-        status: '본문 검증 보류',
-        note: '공식 공지 목록 검색에 2026-10-21 게시와 적용일 노출. 본문 403으로 신구 편명 매핑은 검증하지 못함. 구편명 변환 추정 없음.',
+        status: '공식 공지 확인 완료',
+        note: '2026.10.25 이후 적용되는 전 노선 신편명과 왕복 편명 쌍을 공식 공지에서 확인했습니다.',
+    },
+    {
+        id: 'airseoul-fleet-20260930',
+        title: '에어서울 항공기 등록 정보',
+        sourceUrl: 'https://flyairseoul.com/CW/ko/safe_infor.do',
+        checkedAt: '2026-11-22',
+        appliesTo: 'HL8072·HL8073·HL8255·HL7790·HL7212·HL7789',
+        status: '공식 등록 정보 확인 완료',
+        note: '2026.09.30 기준 현행 A321-200 6대를 확인했습니다. HL8281은 전체 운항 시나리오에 필요한 추가 슬롯으로, 에어서울에서 실제 운항했던 등록기호입니다.',
+    },
+    {
+        id: 'airpremia-fleet-20261122',
+        title: '에어프레미아 항공기 등록 정보',
+        sourceUrl: 'https://b787register.co.uk/operator.php?operator=Air+Premia',
+        checkedAt: '2026-11-22',
+        appliesTo: '에어프레미아 B787-9 9대',
+        status: '현행 등록 정보 대조 완료',
+        note: '현행 B787-9 9대의 등록기호와 운항 상태를 대조했습니다.',
+    },
+    {
+        id: 'airpremia-icn-20261122',
+        title: '인천공항 2026.11.22 에어프레미아 출발편',
+        sourceUrl: 'https://nowboarding.kr/airport/icn/departures',
+        checkedAt: '2026-11-22',
+        appliesTo: '2026-11-22 인천 출발 운항편',
+        status: '공항 운항 자료 대조 완료',
+        note: 'YP103 일요일 운항을 포함해 11월 22일 편명, 목적지와 예정 출발 시각을 대조했습니다. 일정 변경된 YP135는 당일 운항에서 제외했습니다.',
     },
     {
         id: 'airportal',
@@ -228,8 +285,130 @@ export const tutorial = makeDataset('airseoul-partial-20261120-v1', '부분 시�
         'trip-302',
     ],
 ]);
-const premiaAircraft = Array.from({ length: 9 }, (_, i) => ({
-    id: `AP${String(i + 1).padStart(2, '0')}`,
+const airSeoulNovember22Rows = [
+    ['2026-11-22', 'GMP', 'CJU', 'RS6347', 'RS6306', '06:00', '07:15', '2026-11-22', '08:05', '09:20', 'airseoul-gmp-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'KIX', 'RS301', 'RS302', '07:15', '09:05', '2026-11-22', '10:00', '11:55', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'NRT', 'RS247', 'RS248', '08:10', '10:25', '2026-11-22', '11:25', '14:05', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'FUK', 'RS433', 'RS434', '08:10', '09:30', '2026-11-22', '10:30', '12:05', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'TAK', 'RS297', 'RS298', '08:45', '10:30', '2026-11-22', '11:40', '13:20', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'NRT', 'RS259', 'RS260', '09:20', '11:50', '2026-11-22', '12:50', '15:35', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'GMP', 'CJU', 'RS6407', 'RS6408', '09:55', '11:15', '2026-11-22', '11:45', '13:00', 'airseoul-gmp-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'DYG', 'RS861', 'RS862', '12:20', '15:00', '2026-11-22', '16:00', '19:55', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'KIX', 'RS353', 'RS354', '13:10', '15:00', '2026-11-22', '16:00', '17:55', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'YGJ', 'RS471', 'RS472', '13:20', '14:50', '2026-11-22', '15:50', '17:40', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'GMP', 'CJU', 'RS6419', 'RS6356', '13:40', '14:55', '2026-11-22', '16:05', '17:20', 'airseoul-gmp-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'FUK', 'RS457', 'RS458', '14:25', '15:55', '2026-11-22', '17:00', '18:35', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'KIX', 'RS381', 'RS382', '15:20', '17:00', '2026-11-22', '18:00', '20:05', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'NRT', 'RS267', 'RS268', '16:40', '19:00', '2026-11-22', '20:00', '22:30', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'GMP', 'CJU', 'RS6439', 'RS6502', '18:40', '19:55', '2026-11-22', '20:40', '21:55', 'airseoul-gmp-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'KIX', 'RS379', 'RS380', '18:50', '20:40', '2026-11-22', '21:40', '23:30', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'GUM', 'RS913', 'RS914', '19:25', '01:00', '2026-11-23', '02:00', '05:50', 'airseoul-icn-20261122', 'airseoul-live-20261122', '2026-11-23', '2026-11-23'],
+    ['2026-11-22', 'ICN', 'CXR', 'RS115', 'RS116', '20:00', '23:30', '2026-11-23', '00:30', '07:25', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'DAD', 'RS095', 'RS096', '20:55', '23:40', '2026-11-23', '00:40', '07:15', 'airseoul-icn-20261122', 'airseoul-live-20261122'],
+    ['2026-11-22', 'ICN', 'GUM', 'RS905', 'RS906', '20:55', '02:30', '2026-11-23', '03:30', '07:20', 'airseoul-icn-20261122', 'airseoul-live-20261122', '2026-11-23', '2026-11-23'],
+];
+const airSeoulDateAt = (dayIndex, offset = 0) =>
+    new Date(Date.UTC(2026, 10, 16 + dayIndex + offset)).toISOString().slice(0, 10);
+const mondayToSaturday = [0, 1, 2, 3, 4, 5];
+const airSeoulWeeklyRoutes = [
+    ['GMP', 'CJU', 'RS6347', 'RS6306', '06:00', '07:15', '08:05', '09:20', mondayToSaturday],
+    ['ICN', 'KIX', 'RS301', 'RS302', '07:15', '09:05', '10:00', '11:55', mondayToSaturday],
+    ['ICN', 'NRT', 'RS247', 'RS248', '08:10', '10:25', '11:25', '14:05', mondayToSaturday],
+    ['ICN', 'FUK', 'RS433', 'RS434', '08:10', '09:30', '10:30', '12:05', mondayToSaturday],
+    ['ICN', 'TAK', 'RS297', 'RS298', '08:45', '10:30', '11:40', '13:20', mondayToSaturday],
+    ['ICN', 'NRT', 'RS259', 'RS260', '09:20', '11:50', '12:50', '15:35', mondayToSaturday],
+    ['GMP', 'CJU', 'RS6407', 'RS6408', '09:55', '11:15', '11:45', '13:00', mondayToSaturday],
+    ['ICN', 'DYG', 'RS861', 'RS862', '12:20', '15:00', '16:00', '19:55', [1, 3, 5]],
+    ['ICN', 'KIX', 'RS353', 'RS354', '13:10', '15:00', '16:00', '17:55', [0, 1, 2, 4, 5]],
+    ['ICN', 'YGJ', 'RS471', 'RS472', '13:20', '14:50', '15:50', '17:40', [0, 2, 3, 4]],
+    ['GMP', 'CJU', 'RS6419', 'RS6356', '13:40', '14:55', '16:05', '17:20', mondayToSaturday],
+    ['ICN', 'FUK', 'RS457', 'RS458', '14:25', '15:55', '17:00', '18:35', mondayToSaturday],
+    ['ICN', 'KIX', 'RS381', 'RS382', '15:20', '17:00', '18:00', '20:05', mondayToSaturday],
+    ['ICN', 'NRT', 'RS267', 'RS268', '16:40', '19:00', '20:00', '22:30', mondayToSaturday],
+    ['GMP', 'CJU', 'RS6439', 'RS6502', '18:40', '19:55', '20:40', '21:55', mondayToSaturday],
+    ['ICN', 'KIX', 'RS379', 'RS380', '18:50', '20:40', '21:40', '23:30', [2, 4]],
+    ['ICN', 'GUM', 'RS913', 'RS914', '19:25', '01:00', '02:00', '05:50', mondayToSaturday, true],
+    ['ICN', 'CXR', 'RS115', 'RS116', '20:00', '23:30', '00:30', '07:25', [1, 4], true, false],
+    ['ICN', 'DAD', 'RS095', 'RS096', '20:55', '23:40', '00:40', '07:15', [2, 3, 5], true, false],
+    ['ICN', 'GUM', 'RS905', 'RS906', '20:55', '02:30', '03:30', '07:20', [0, 1, 2, 3, 4], true],
+];
+const airSeoulWeeklyRows = [
+    ...airSeoulWeeklyRoutes.flatMap(
+        ([
+            base,
+            destination,
+            out,
+            back,
+            dep,
+            arr,
+            returnDep,
+            returnArr,
+            days,
+            returnNextDay = false,
+            outboundArrivesNextDay = returnNextDay,
+        ]) =>
+            days.map((day) => {
+                const departureDate = airSeoulDateAt(day);
+                const returnDate = airSeoulDateAt(day, returnNextDay ? 1 : 0);
+                const outboundArrivalDate = airSeoulDateAt(day, outboundArrivesNextDay ? 1 : 0);
+                return [
+                    departureDate,
+                    base,
+                    destination,
+                    out,
+                    back,
+                    dep,
+                    arr,
+                    returnDate,
+                    returnDep,
+                    returnArr,
+                    'weekly-catalog',
+                    'weekly-catalog',
+                    outboundArrivalDate,
+                    returnDate,
+                ];
+            }),
+    ),
+    ...airSeoulNovember22Rows,
+];
+const airSeoulFullRules = {
+    ...rules,
+    turnaroundMinutes: 30,
+    maxHours: 140,
+    maxCycles: 60,
+};
+const airSeoulFullRegistrations = ['HL8072', 'HL8073', 'HL8255', 'HL7790', 'HL7212', 'HL7789', 'HL8281'];
+const airSeoulFullAircraft = airSeoulFullRegistrations.map((id) => ({
+    id,
+    startAirport: 'ICN',
+    initialHours: 0,
+    initialCycles: 0,
+}));
+export const airSeoulFull = makeDataset(
+    'airseoul-weekly-20261122-v2',
+    '에어서울 주간 운항',
+    'weekly',
+    airSeoulWeeklyRows,
+    {
+        aircraft: airSeoulFullAircraft,
+        rules: airSeoulFullRules,
+        difficulty: '중 난이도',
+        description: '2026.11.16~22 편명별 운항 요일을 반영한 주간 운항',
+    },
+);
+const premiaRegistrations = [
+    'HL8701',
+    'HL8702',
+    'HL8703',
+    'HL8704',
+    'HL8517',
+    'HL8516',
+    'HL8387',
+    'HL8388',
+    'HL8389',
+];
+const premiaAircraft = premiaRegistrations.map((id, i) => ({
+    id,
     startAirport: 'ICN',
     initialHours: [8, 5, 7, 6, 9, 4, 8, 5, 7][i],
     initialCycles: [2, 2, 4, 2, 4, 2, 2, 4, 2][i],
@@ -375,6 +554,7 @@ const premiaRoutes = {
 [4, 5, 6].forEach((day) => addPremiaRotation(day, premiaRoutes.nrt2));
 addPremiaRotation(2, premiaRoutes.lax2, 1);
 addPremiaRotation(4, premiaRoutes.lax2, 2);
+addPremiaRotation(6, premiaRoutes.lax2, 2);
 [[2, 1], [4, 1], [5, 1], [6, 1]].forEach(([day, offset]) =>
     addPremiaRotation(day, premiaRoutes.sfo, offset),
 );
@@ -384,7 +564,7 @@ addPremiaRotation(4, premiaRoutes.lax2, 2);
 [0, 3, 4, 6].forEach((day) => addPremiaRotation(day, premiaRoutes.bkk));
 [0, 1, 2, 4, 6].forEach((day) => addPremiaRotation(day, premiaRoutes.hkg));
 export const airPremia = makeDataset(
-    'airpremia-weekly-20261120-v1',
+    'airpremia-weekly-20261122-v2',
     '에어프레미아 주간 운항',
     'weekly',
     premiaRows,
@@ -394,7 +574,7 @@ export const airPremia = makeDataset(
         airlineName: '에어프레미아',
         airlineCode: 'YP',
         difficulty: '최하 난이도',
-        description: '2026.11.20 기준 중·장거리 주간 운항',
+        description: '2026.11.22 재검증 중·장거리 주간 운항',
         boundaryHours: 72,
         maintenance: false,
     },
@@ -442,4 +622,4 @@ export const practice = makeDataset(
     'fiction',
     practiceRows,
 );
-export const datasets = [airPremia, tutorial, practice];
+export const datasets = [airPremia, airSeoulFull, practice];
