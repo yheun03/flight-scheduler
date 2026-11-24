@@ -2147,6 +2147,11 @@ h1 {
 }
 
 .rotation-picker {
+    z-index: 30;
+    box-shadow: -4px 0 24px #153f3226;
+    &--dragging { opacity: 0.12; pointer-events: none; }
+    &__hint { padding: 0 16px; color: $muted; font-size: 0.8125rem; }
+    [draggable='true'] { cursor: grab; }
     position: fixed;
     inset: 0 0 0 auto;
     margin: 0;
@@ -2202,4 +2207,15 @@ h1 {
     justify-content: center;
     gap: 12px;
     padding: 12px;
+}
+
+.ferry-planner {
+    max-width: min(480px, calc(100vw - 24px));
+    &__form {
+        display: grid;
+        gap: 12px;
+        padding: 20px;
+        label { display: grid; gap: 5px; }
+        select { width: 100%; padding: 8px; }
+    }
 }

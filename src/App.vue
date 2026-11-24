@@ -81,7 +81,7 @@
                         </h1>
                         <p>
                             7일 반복 시간표를 {{ dataset.aircraft.length }}대의 가상 항공기에 배정하세요.
-                            모든 시각은 KST 기준입니다.
+                            타임라인은 한국 시각, 운항 카드의 출발은 현지 시각입니다.
                         </p>
                     </div>
                     <button class="scenario-pill" @click="openDialog('levels')">
@@ -129,14 +129,18 @@
                                 : 'FS 편명과 모든 시각은 게임용 창작 데이터입니다.')
                         }}
                     </span>
+                    <span v-if="dataset.pending?.length">시각 확인 대기 {{ dataset.pending.length }}편</span>
                     <button class="text-button" @click="openDialog('sources')">출처와 검증 범위</button>
                 </div>
 
+                <button v-if="answerShown && dataset.pending?.length" class="button" @click="openPending">
+                    정답 배정에서 시각 확인 대기 중인 {{ dataset.pending.length }}편 보기
+                </button>
                 <section class="metrics" aria-label="운영 요약">
                     <article class="metric">
                         <div class="metric__icon"><AppIcon name="check" /></div>
                         <div>
-                            <span class="metric__label">배정 왕복편</span>
+                            <span class="metric__label">배정 운항편</span>
                             <strong>
                                 {{ result.completed }}
                                 <small>/ {{ result.total }}편</small>
@@ -258,9 +262,10 @@
                                 accept=".csv,text/csv"
                                 @change="loadCsv"
                             />
-                            <button v-if="dataset.kind !== 'fiction'" class="button" @click="showAnswer">
+                            <button v-if="dataset.pending" class="button" @click="openFerry">페리 비행 추가</button>
+                            <button v-if="dataset.kind !== 'fiction'" class="button" :disabled="answerBusy" @click="showAnswer">
                                 <AppIcon name="grid" />
-                                정답 보기
+                                {{ answerBusy ? '배정안 비교 중' : '정답 보기' }}
                             </button>
                             <button class="button button--primary" @click="showResults">
                                 <AppIcon name="check" />
@@ -283,14 +288,14 @@
                         </div>
                         <span>
                             <small>편명</small>
-                            {{ selected.outbound.number }} / {{ selected.inbound.number }}
+                            {{ selected.outbound.number }}{{ selected.single ? '' : ' / ' + selected.inbound.number }}
                         </span>
                         <span>
                             <small>출발</small>
                             {{ selected.outbound.weekday }} {{ selected.outbound.departureLocal }}
                         </span>
                         <span>
-                            <small>귀환</small>
+                            <small>도착</small>
                             {{ formatTime(selected.arrival) }}
                         </span>
                         <span>
@@ -357,7 +362,7 @@
                                         <strong>{{ plane.id }}</strong>
                                         <small v-if="plane.model || dataset.airlineCode === 'RS' || dataset.airlineCode === 'YP'">{{ plane.model || (dataset.airlineCode === 'RS' ? 'A321-200' : 'B787-9') }}</small>
                                         <small>
-                                            <span>{{ loadFor(plane.id).count }}개 왕복</span>
+                                            <span>{{ loadFor(plane.id).count }}개 운항</span>
                                         </small>
                                     </div>
                                     <span
@@ -378,6 +383,9 @@
                                     >
                                         정비
                                     </span>
+                                    <span v-for="f in ferryOptions.filter((item) => item.active && item.aircraftId === plane.id)"
+                                        :key="f.id" class="maintenance-block" :style="position(f)"
+                                        :title="f.from + ' → ' + f.to + ' 계획 페리 ' + f.minutes + '분 / ' + number(ferryCost(dataset, f.minutes)) + ' 크레딧'">페리</span>
                                     <FlightBlock
                                         v-for="block in planeBlocks(plane.id)"
                                         :key="block.id"
@@ -401,7 +409,7 @@
                                         "
                                         class="timeline__empty"
                                     >
-                                        {{ dragId ? '여기에 왕복편 배정' : '배정 가능한 시간' }}
+                                        {{ dragId ? '여기에 운항편 배정' : '배정 가능한 시간' }}
                                     </span>
                                 </div>
                             </div>
@@ -419,7 +427,7 @@
                             </span>
                             <span>
                                 <i class="legend__ready"></i>
-                                귀환 후 준비
+                                도착 후 준비
                             </span>
                             <span v-if="dataset.maintenance.length">
                                 <i class="legend__maintenance"></i>
@@ -443,12 +451,13 @@
                 <button class="button button--primary rotation-picker__trigger" aria-haspopup="dialog" @click="openPicker">
                     <AppIcon name="box" /> 운항 카드 선택
                 </button>
-                <dialog ref="picker" @close="pickerVisible = false" class="rotation-picker" aria-labelledby="picker-title" @click.self="picker.close()">
+                <dialog ref="picker" @close="pickerVisible = false" class="rotation-picker" :class="{ 'rotation-picker--dragging': pickerDragging }" aria-labelledby="picker-title" @click.self="picker.close()">
                     <div class="rotation-picker__body">
                         <header class="panel-heading">
                             <h2 id="picker-title">운항 카드 선택</h2>
                             <button class="button" @click="picker.close()">닫기</button>
                         </header>
+                        <p class="rotation-picker__hint">운항 카드를 타임라인의 기체 행으로 끌어 배정하세요.</p>
                         <div class="rotation-picker__filters">
                             <input v-model.trim="pickerQuery" type="search" placeholder="편명, 공항 또는 배정 기체 검색" aria-label="운항 카드 검색" autofocus />
                             <select v-model="pickerStatus" aria-label="배정 상태">
@@ -458,17 +467,25 @@
                             </select>
                         </div>
                         <div class="rotation-picker__list">
-                            <button v-for="block in pickerBlocks" :key="block.id" class="rotation-picker__card"
+                            <details ref="pendingList" v-if="dataset.pending?.length && pickerStatus !== 'assigned'">
+                                <summary>예정 시각 확인 대기 {{ dataset.pending.length }}편</summary>
+                                <p v-for="f in pendingMatches" :key="f.id" class="rotation-picker__card">
+                                    <strong>{{ f.number }}　{{ f.from }} → {{ f.to }}</strong>
+                                    <small>{{ f.departureDate }}　{{ f.departureLocal || '출발 미확인' }} / {{ f.arrivalLocal || '도착 미확인' }}</small>
+                                </p>
+                            </details>
+                            <button v-for="block in pickerBlocks" :key="block.id" class="rotation-picker__card" draggable="true"
+                                @dragstart="startPickerDrag($event, block.id)" @dragend="endDrag"
                                 :aria-pressed="selectedId === block.id" @click="selectBlock(block.id)">
                                 <strong>{{ block.outbound.from }} → {{ block.outbound.to }}</strong>
                                 <span>{{ block.outbound.weekday }} {{ block.outbound.departureLocal }}</span>
-                                <small>{{ block.outbound.number }} / {{ block.inbound.number }}</small>
+                                <small>{{ block.outbound.number }}{{ block.single ? '' : ' / ' + block.inbound.number }}</small>
                                 <small>{{ assignedPlane(block.id) || '미배정' }}</small>
                             </button>
                             <p v-if="!pickerBlocks.length">조건에 맞는 운항 카드가 없습니다.</p>
                         </div>
                         <footer v-if="selected" class="rotation-picker__selection">
-                            <strong>{{ selected.outbound.number }} / {{ selected.inbound.number }}</strong>
+                            <strong>{{ selected.outbound.number }}{{ selected.single ? '' : ' / ' + selected.inbound.number }}</strong>
                             <span>{{ selected.outbound.weekday }} {{ selected.outbound.departureLocal }}　{{ selected.outbound.from }} → {{ selected.outbound.to }}</span>
                             <label>배정 기체
                                 <select :value="assignedPlane(selected.id) || ''" @change="picker.close(); assign(selected.id, $event.target.value || null)">
@@ -476,6 +493,9 @@
                                     <option v-for="plane in dataset.aircraft" :key="plane.id" :value="plane.id">{{ plane.id }} {{ plane.model }}</option>
                                 </select>
                             </label>
+                            <button v-if="selectedFerry" class="button" @click="toggleFerry(selectedFerry)">
+                                {{ selectedFerry.from }} → {{ selectedFerry.to }} 계획 페리 {{ selectedFerry.active ? '제거' : '추가' }} ({{ selectedFerry.minutes }}분 / {{ number(ferryCost(dataset, selectedFerry.minutes)) }} 크레딧)
+                            </button>
                         </footer>
                     </div>
                 </dialog>
@@ -492,10 +512,10 @@
                             <div>
                                 <h2 id="tray-title">
                                     <AppIcon name="box" />
-                                    미배정 왕복편
+                                    미배정 운항편
                                     <span class="count-badge">{{ unassigned.length }}</span>
                                 </h2>
-                                <p>왕복편을 확인하고 기체를 선택하면 주간 스케줄에 바로 등록됩니다.</p>
+                                <p>운항편을 확인하고 기체를 선택하면 주간 스케줄에 바로 등록됩니다.</p>
                             </div>
                             <label class="tray__filter">
                                 <span class="sr-only">출발 공항 필터</span>
@@ -547,7 +567,7 @@
                                     {{
                                         unassigned.length
                                             ? '이 공항의 미배정편이 없습니다.'
-                                            : '모든 왕복편을 배정했습니다.'
+                                            : '모든 운항편을 배정했습니다.'
                                     }}
                                 </strong>
                                 <span>배정된 블록을 이곳으로 옮기면 배정이 해제됩니다.</span>
@@ -561,7 +581,7 @@
                     </section>
                     <section class="panel detail" aria-labelledby="detail-title">
                         <div class="panel-heading">
-                            <h2 id="detail-title">왕복편 상세</h2>
+                            <h2 id="detail-title">운항편 상세</h2>
                             <span class="badge badge--neutral">예정 시각 고정</span>
                         </div>
                         <template v-if="selected">
@@ -581,11 +601,11 @@
                             </div>
                             <div class="detail__legs">
                                 <div
-                                    v-for="(flight, i) in [selected.outbound, selected.inbound]"
+                                    v-for="(flight, i) in (selected.single ? [selected.outbound] : [selected.outbound, selected.inbound])"
                                     :key="flight.id"
                                 >
                                     <span class="detail__leg-number">
-                                        {{ i ? '복편' : '왕편' }}
+                                        {{ selected.single ? '편도' : i ? '복편' : '왕편' }}
                                         <strong>{{ flight.number }}</strong>
                                     </span>
                                     <strong>
@@ -617,26 +637,26 @@
                                     순수 비행
                                     <strong>{{ selected.hours.toFixed(2) }}시간</strong>
                                 </span>
-                                <span>
+                                <span v-if="!selected.single">
                                     현지 대기
                                     <strong>
                                         {{ Math.round((selected.inStart - selected.outEnd) / MINUTE) }}분
                                     </strong>
                                 </span>
                                 <span>
-                                    귀환 후 준비
+                                    도착 후 준비
                                     <strong>{{ selected.turnaroundMinutes }}분</strong>
                                 </span>
                                 <span>
                                     사이클
-                                    <strong>2회</strong>
+                                    <strong>{{ selected.cycles }}회</strong>
                                 </span>
                             </div>
                             <label class="detail__assign">
                                 배정 기체
                                 <select
                                     :value="assignedPlane(selected.id)"
-                                    aria-label="선택한 왕복편 배정 기체"
+                                    aria-label="선택한 운항편 배정 기체"
                                     @change="assign(selected.id, $event.target.value || null)"
                                 >
                                     <option value="">미배정 보관함</option>
@@ -653,9 +673,7 @@
                                 {{
                                     dataset.kind === 'fiction'
                                         ? '가상 연습용 시간표'
-                                        : dataset.id === 'airseoul-full-20261122-v1'
-                                          ? '2026.11.22 기준 전체 운항 자료'
-                                          : '2026.11.20 기준 주간 운항 자료'
+                                        : '11월 16일~22일 / ' + selected.outbound.sourceId
                                 }}
                                 <br />
                                 준비 시간, 정비와 기체 수는 게임 설정입니다.
@@ -670,7 +688,7 @@
                         </template>
                         <div v-else class="empty-state">
                             <AppIcon name="plane" />
-                            <strong>왕복편을 선택하세요.</strong>
+                            <strong>운항편을 선택하세요.</strong>
                             <span>타임라인과 보관함에서 상세를 볼 수 있습니다.</span>
                         </div>
                     </section>
@@ -690,7 +708,7 @@
                             <li v-for="(issue, i) in result.issues" :key="`${issue.code}-${i}`">
                                 <AppIcon :name="issue.code === 'unassigned' ? 'box' : 'warning'" />
                                 <button
-                                    v-if="blocks.some((b) => b.id === issue.blockId)"
+                                    v-if="issue.blockId"
                                     @click="
                                         selectBlock(issue.blockId);
                                         focusSelectedBlock();
@@ -801,6 +819,34 @@
                 </section>
             </main>
         </div>
+        <dialog ref="ferryDialog" class="modal ferry-planner" aria-labelledby="ferry-heading">
+            <header class="modal__header"><h2 id="ferry-heading">페리 비행 추가</h2><button class="button" @click="ferryDialog.close()">닫기</button></header>
+            <div class="ferry-planner__form">
+                <label>이동할 기체<select v-model="ferryPlane" @change="resetFerryOrigin">
+                    <option v-for="plane in dataset.aircraft" :key="plane.id" :value="plane.id">{{ plane.id }} {{ plane.model }}</option>
+                </select></label>
+                <label>이동 전 위치<select v-model="ferryAnchor" @change="resetFerryDestination">
+                    <option value="">주간 시작 위치 ({{ ferryBase }})</option>
+                    <option v-for="leg in ferryLegs" :key="leg.id" :value="leg.id">{{ leg.outbound.number }} 도착 후 / {{ leg.inbound.to }} / {{ formatDate(leg.arrival) }}</option>
+                </select></label>
+                <label>이동할 공항<select v-model="ferryTo">
+                    <option value="" disabled>공항 선택</option>
+                    <option v-for="code in ferryAirports.filter((code) => code !== ferryOrigin)" :key="code" :value="code">{{ airports[code].name }} ({{ code }})</option>
+                </select></label>
+                <template v-if="ferryPreview">
+                    <strong>{{ ferryOrigin }} → {{ ferryTo }} / 예상 {{ ferryPreview.minutes }}분</strong>
+                    <span>출발 {{ formatDate(ferryPreview.start) }} → 도착 {{ formatDate(ferryPreview.arrival) }} (KST)</span>
+                    <span>다음 운항 가능 {{ formatDate(ferryPreview.end) }} / 예상 비용 {{ number(ferryCost(dataset, ferryPreview.minutes)) }} 크레딧</span>
+                    <small>게임 기준 연료비와 시간별 정비 적립금, 이착륙 1회 적립금을 합산합니다.</small>
+                </template>
+                <p v-if="ferryWarning" role="status">{{ ferryWarning }}</p>
+                <button class="button button--primary" :disabled="!ferryPreview || !!ferryWarning" @click="addManualFerry">타임라인에 추가</button>
+                <div v-for="f in ferryOptions.filter((item) => item.manual && item.aircraftId === ferryPlane)" :key="f.id">
+                    {{ f.from }} → {{ f.to }} / {{ formatDate(f.start) }}
+                    <button class="button" @click="commit(assignments.filter((a) => a.rotationId !== f.id))">삭제</button>
+                </div>
+            </div>
+        </dialog>
         <dialog ref="dialog" class="modal" @click="closeOnBackdrop">
             <div class="modal__header">
                 <div>
@@ -831,7 +877,7 @@
                             {{ result.cleared ? '빈틈없는 운항을 완성했습니다!' : '더 나은 운항을 향해' }}
                         </h3>
                         <p>
-                            {{ result.completed }}/{{ result.total }} 필수 왕복편 배정 / 검증 오류
+                            {{ result.completed }}/{{ result.total }} 필수 운항편 배정 / 검증 오류
                             {{ result.issues.length }}건
                         </p>
                     </div>
@@ -855,7 +901,7 @@
                             <small>
                                 {{
                                     [
-                                        '필수 왕복편 배정 비율',
+                                        '필수 운항편 배정 비율',
                                         '현지 준비와 다음 편까지의 추가 여유',
                                         `초기 운항량을 포함한 ${dataset.aircraft.length}대의 편차`,
                                         '전체 필수 운항 비용과 사용 기체 수',
@@ -922,14 +968,14 @@
                     <p>
                         기체별 초기 시간을 포함해 {{ dataset.rules.maxHours }}시간,
                         {{ dataset.rules.maxCycles }}사이클 이내. 현지 최소 준비
-                        {{ dataset.rules.destinationMinimumMinutes }}분, 귀환 후 준비
+                        {{ dataset.rules.destinationMinimumMinutes }}분, 도착 후 준비
                         {{ dataset.rules.turnaroundMinutes }}분. 정비는 고정 필수 블록이며 제거할 수 없습니다.
                         일회성 모드의 인접 경계는 직전 주 준비 완료 월요일 00:00, 다음 주 월요일 12:00 출발을
                         가정한 게임 조건입니다.
                     </p>
                     <p v-for="load in result.loads" :key="load.id">
                         {{ load.id }}: {{ load.hours.toFixed(2) }}시간 / {{ load.cycles }}사이클 /
-                        {{ load.count }}왕복
+                        {{ load.count }}편
                     </p>
                 </details>
                 <p class="modal__note">
@@ -942,9 +988,8 @@
             </template>
             <template v-if="dialogType === 'sources'">
                 <p class="modal__intro">
-                    공식 주간 전체 시간표는 확보하지 못했습니다. 실제 튜토리얼은 11월 20일 왕복 7개와 11월
-                    21일 오사카 왕복 1개만 수록합니다. 예정 시각만 사용하며, 날짜를 반복해 주간 자료로 만들지
-                    않았습니다.
+                    현지 출발일 기준으로 정기편을 수록합니다. 예정 시각 확인 대기 편은 운항 카드에서 조회할 수 있습니다.
+                    페리는 기체 이동을 위해 추가하는 게임용 계획편입니다. 인천과 김포 사이는 45분, 다른 공항 사이는 거리를 기준으로 소요 시간을 추정합니다.
                 </p>
                 <article v-for="source in sources" :key="source.id" class="source-card">
                     <span class="badge badge--neutral">{{ source.status }}</span>
@@ -958,8 +1003,7 @@
                     <small>확인: {{ source.checkedAt }} / 적용: {{ source.appliesTo }}</small>
                 </article>
                 <p class="modal__note">
-                    왕복 연결은 게임용 그룹입니다. 동일 기체의 실제 운항 이력은 확인하지 않았습니다. 참고 화면
-                    첨부는 현재 대화에서 확인되지 않아 요청한 정보 구조를 기준으로 구성했습니다.
+                    주간 시나리오의 기체 배정과 페리는 실제 등록기호별 운항 이력을 의미하지 않습니다.
                 </p>
             </template>
             <template v-if="dialogType === 'levels'">
@@ -992,20 +1036,20 @@
             <template v-if="dialogType === 'help'">
                 <ol class="help-list">
                     <li>
-                        <strong>왕복편을 선택하세요.</strong>
+                        <strong>운항편을 선택하세요.</strong>
                         <p>보관함 또는 타임라인의 블록을 클릭하거나 키보드 Tab과 Enter로 선택합니다.</p>
                     </li>
                     <li>
                         <strong>기체를 배정하세요.</strong>
                         <p>
                             상세의 배정 기체 메뉴를 사용하거나 블록 전체를 기체 행으로 드래그합니다. 시각은
-                            바뀌지 않으며 왕편과 복편은 항상 함께 이동합니다.
+                            바뀌지 않으며 주간 시간표의 각 편도편을 개별 배정합니다.
                         </p>
                     </li>
                     <li>
                         <strong>공항과 준비 시간을 확인하세요.</strong>
                         <p>
-                            김포 GMP와 인천 ICN은 다른 공항입니다. 귀환 후 준비 45분과 현지 준비 30분은 게임
+                            김포 GMP와 인천 ICN은 다른 공항입니다. 도착 후 준비 45분과 현지 준비 30분은 게임
                             규칙입니다. 1회 이착륙은 1사이클, 왕복은 2사이클입니다.
                         </p>
                     </li>
@@ -1039,13 +1083,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import AppIcon from './components/AppIcon.vue';
 import FlightBlock from './components/FlightBlock.vue';
-import { airPremia, airports, datasets as existingDatasets, makeWeeklyDataset, sources } from './data/schedules';
+import { airports, datasets as existingDatasets, makeWeeklyDataset, makeLegScenario, sources } from './data/schedules';
 import { dayLabel, getRouteCatalog } from './data/weeklyNetwork';
 import { airlineSchedules } from './data/airlineSchedules';
 import {
     evaluate,
     getBlocks,
-    solveSchedule,
+    manualFerry, ferryCost, ferryConnections,
     makeSave,
     parseSave,
     recordClear,
@@ -1058,8 +1102,9 @@ import {
 const weeklyDatasets = airlineSchedules
     .filter((airline) => ['WE', 'BX', 'LJ', 'OZ', 'KE'].includes(airline.code))
     .map((airline) => makeWeeklyDataset(airline.schedules, airline.code, airline.networkSchedules));
-const datasets = [...existingDatasets, ...weeklyDatasets];
-const dataset = shallowRef(airPremia);
+const datasets = [...existingDatasets, ...weeklyDatasets].map((d) => d.kind === 'weekly'
+    ? makeLegScenario(d, airlineSchedules.find((a) => a.code === d.airlineCode)) : d);
+const dataset = shallowRef(datasets[0]);
 const currentPage = ref('scheduler');
 const selectedAirlineId = ref('airseoul');
 const departureGroupFilter = ref('all');
@@ -1071,6 +1116,7 @@ const redoStack = ref([]);
 const selectedId = ref(null);
 const airportFilter = ref('all');
 const dragId = ref(null);
+const pickerDragging = ref(false);
 const dragOver = ref(null);
 const notice = ref('');
 const storageError = ref('');
@@ -1111,6 +1157,51 @@ const visibleRoutes = computed(() => routeCatalog.value.filter(
     (route) => departureGroupFilter.value === 'all' || route.from === departureGroupFilter.value,
 ));
 const result = computed(() => evaluate(dataset.value, assignments.value, repeat.value));
+const ferryOptions = computed(() => ferryConnections(dataset.value, assignments.value, blocks.value));
+const ferryDialog = ref(null);
+const ferryPlane = ref('');
+const ferryAnchor = ref('');
+const ferryTo = ref('');
+const ferryLegs = computed(() => blocks.value.filter((b) => assignedPlane(b.id) === ferryPlane.value).sort((a,b) => a.start - b.start));
+const ferryBase = computed(() => dataset.value.aircraft.find((p) => p.id === ferryPlane.value)?.startAirport);
+const ferryOriginLeg = computed(() => ferryLegs.value.find((b) => b.id === ferryAnchor.value));
+const ferryOrigin = computed(() => ferryOriginLeg.value?.inbound.to || ferryBase.value);
+const ferryAirports = computed(() => [...new Set(dataset.value.flights.flatMap((f) => [f.from, f.to]))].sort());
+const ferryPreview = computed(() => manualFerry(dataset.value, {
+    rotationId: ['ferry', ferryOrigin.value, ferryTo.value, ferryOriginLeg.value?.end || dataset.value.weekStart, ferryPlane.value].join(':'),
+    aircraftId: ferryPlane.value,
+}));
+const ferryWarning = computed(() => {
+    const f = ferryPreview.value;
+    if (!f) return ferryTo.value ? '해당 구간의 이동 시간을 계산할 수 없습니다.' : '';
+    const busy = [...ferryLegs.value, ...ferryOptions.value.filter((x) => x.active && x.aircraftId === ferryPlane.value),
+        ...dataset.value.maintenance.filter((x) => x.aircraftId === ferryPlane.value)];
+    return busy.some((x) => x.start < f.end && x.end > f.start) ? '이동 또는 도착 준비 시간이 기존 일정과 겹칩니다.' : '';
+});
+function resetFerryDestination() {
+    const next = ferryLegs.value.find((b) => b.start >= (ferryOriginLeg.value?.end || dataset.value.weekStart));
+    ferryTo.value = next && next.outbound.from !== ferryOrigin.value ? next.outbound.from : '';
+}
+function resetFerryOrigin() {
+    ferryAnchor.value = ferryLegs.value.find((b) => b.id === selectedId.value)?.id || '';
+    resetFerryDestination();
+}
+function openFerry() {
+    ferryPlane.value = assignedPlane(selectedId.value) || dataset.value.aircraft[0].id;
+    resetFerryOrigin();
+    ferryDialog.value.showModal();
+}
+function addManualFerry() {
+    const f = ferryPreview.value;
+    if (!f || ferryWarning.value) return;
+    commit([...assignments.value, { rotationId: f.id, aircraftId: f.aircraftId }]);
+    ferryDialog.value.close();
+    toast(`${f.from} → ${f.to} 페리 추가 / ${f.minutes}분 / ${number(ferryCost(dataset.value, f.minutes))} 크레딧`);
+}
+const selectedFerry = computed(() => ferryOptions.value.find((f) => f.id === selectedId.value));
+function toggleFerry(f) {
+    commit(assignments.value.map((a) => a.rotationId === f.id ? { ...a, ferryFrom: f.active ? undefined : f.previous } : a));
+}
 const conflicts = computed(() => result.value.issues.filter((i) => i.code !== 'unassigned'));
 const assignmentIndex = computed(() => new Map(assignments.value.map((a) => [a.rotationId, a.aircraftId])));
 const unassigned = computed(() =>
@@ -1133,14 +1224,23 @@ const trayPageBlocks = computed(() => filteredUnassigned.value.slice((trayPage.v
 watch([airportFilter, dataset], () => { trayPage.value = 1; });
 watch(trayPageCount, (count) => { trayPage.value = Math.min(trayPage.value, count); });
 const picker = ref(null);
+const pendingList = ref(null);
+async function openPending() {
+    openPicker();
+    pickerStatus.value = 'all';
+    await nextTick();
+    if (pendingList.value) pendingList.value.open = true;
+}
 const pickerQuery = ref('');
+const pendingMatches = computed(() => (dataset.value.pending || []).filter((f) =>
+    [f.number, f.from, f.to, airports[f.from].name, airports[f.to].name].join(' ').toLowerCase().includes(pickerQuery.value.toLowerCase())));
 const pickerStatus = ref('pending');
 const pickerVisible = ref(false);
 function openPicker() {
     pickerQuery.value = '';
     pickerStatus.value = unassigned.value.length ? 'pending' : 'all';
     pickerVisible.value = true;
-    picker.value.showModal();
+    if (!picker.value.open) picker.value.show();
 }
 const pickerBlocks = computed(() => {
     if (!pickerVisible.value) return [];
@@ -1161,6 +1261,8 @@ const days = computed(() =>
         label: ['월', '화', '수', '목', '금', '토', '일'][index],
     })),
 );
+const answerShown = ref(false);
+watch(dataset, () => { answerShown.value = false; });
 const rangeStart = computed(() => dataset.value.weekStart);
 const rangeEnd = computed(() => dataset.value.weekEnd);
 const formatDate = (value) =>
@@ -1278,7 +1380,7 @@ function assign(id, planeId) {
     commit(next);
     selectedId.value = id;
     if (planeId) focusSelectedBlock();
-    toast(planeId ? `${planeId}에 왕복편을 배정했습니다.` : '왕복편을 미배정 보관함으로 옮겼습니다.');
+    toast(planeId ? `${planeId}에 운항편을 배정했습니다.` : '운항편을 미배정 보관함으로 옮겼습니다.');
 }
 function undo() {
     if (!undoStack.value.length) return;
@@ -1292,12 +1394,21 @@ function redo() {
     assignments.value = redoStack.value.pop();
     persistSession();
 }
+function startPickerDrag(event, id) {
+    event.dataTransfer.setData('text/plain', id);
+    event.dataTransfer.effectAllowed = 'move';
+    dragId.value = id;
+    selectedId.value = id;
+    pickerDragging.value = true;
+}
 function drop(event, planeId) {
     const id = event.dataTransfer.getData('text/plain');
+    if (pickerDragging.value) picker.value?.close();
     assign(id, planeId);
     endDrag();
 }
 function endDrag() {
+    pickerDragging.value = false;
     dragId.value = null;
     dragOver.value = null;
 }
@@ -1321,7 +1432,7 @@ function scrollTimeline() {
 }
 function changeDataset(id) {
     persistSession();
-    dataset.value = datasets.find((d) => d.id === id) || airPremia;
+    dataset.value = datasets.find((d) => d.id === id) || datasets[0];
     selectedAirlineId.value = scenarioAirline.value?.id || selectedAirlineId.value;
     repeat.value = false;
     playId.value = crypto.randomUUID();
@@ -1427,7 +1538,7 @@ function parseCsvRows(raw) {
 }
 function saveCsv() {
     const saved = makeSave(dataset.value, assignments.value, playId.value, repeat.value);
-    const header = ['version', 'datasetId', 'playId', 'repeat', 'savedAt', 'rotationId', 'aircraftId'];
+    const header = ['version', 'datasetId', 'playId', 'repeat', 'savedAt', 'rotationId', 'aircraftId', 'ferryFrom'];
     const items = saved.assignments.length ? saved.assignments : [{ rotationId: '', aircraftId: '' }];
     const rows = items.map((assignment) => [
         saved.version,
@@ -1437,6 +1548,7 @@ function saveCsv() {
         saved.savedAt,
         assignment.rotationId,
         assignment.aircraftId,
+        assignment.ferryFrom || '',
     ]);
     const csv = [header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
@@ -1465,7 +1577,7 @@ async function loadCsv(event) {
             savedAt: first[4],
             assignments: rows
                 .filter((row) => row[5] || row[6])
-                .map((row) => ({ rotationId: row[5], aircraftId: row[6] })),
+                .map((row) => ({ rotationId: row[5], aircraftId: row[6], ...(row[7] ? { ferryFrom: row[7] } : {}) })),
         };
         const parsed = parseSave(JSON.stringify(saved), dataset.value);
         commit(parsed.assignments);
@@ -1526,17 +1638,44 @@ function showResults() {
     }
     openDialog('results');
 }
+const answerBusy = ref(false);
+let answerWorker;
+function stopAnswer() {
+    answerWorker?.terminate();
+    answerWorker = null;
+    answerBusy.value = false;
+}
+watch(dataset, stopAnswer);
+onBeforeUnmount(stopAnswer);
 function showAnswer() {
+    if (answerBusy.value) return;
+    const scenario = dataset.value;
+    const original = assignments.value;
+    answerBusy.value = true;
     try {
-        commit(solveSchedule(dataset.value));
-        selectedId.value = blocks.value[0]?.id || null;
-        toast(`${dataset.value.airlineName} 운항 스케줄로 자동 배정했습니다.`);
+        answerWorker = new Worker(new URL('./answer.worker.js', import.meta.url), { type: 'module' });
+        answerWorker.onmessage = ({ data }) => {
+            stopAnswer();
+            if (data.error) return toast(data.error);
+            if (dataset.value !== scenario || assignments.value !== original) return toast('배정이 변경되어 계산 결과를 적용하지 않았습니다.');
+            commit(data.plan);
+            selectedId.value = blocks.value[0]?.id || null;
+            answerShown.value = true;
+            toast(`비교한 배정안 중 최고 ${result.value.score}점 / ${result.value.completed}편 배정 / 연결 검토 ${conflicts.value.length}건`);
+        };
+        answerWorker.onerror = () => { stopAnswer(); toast('배정안을 계산하지 못했습니다. 다시 시도해 주세요.'); };
+        answerWorker.postMessage({ dataset: scenario, current: original.map((a) => ({ ...a })) });
     } catch (error) {
+        stopAnswer();
         toast(error.message);
     }
 }
 function keydown(event) {
-    if (dialog.value?.open || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
+    if (event.key === 'Escape' && picker.value?.open && !dialog.value?.open) {
+        picker.value.close();
+        return;
+    }
+    if (ferryDialog.value?.open || dialog.value?.open || /INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault();
         event.shiftKey ? redo() : undo();
@@ -1546,7 +1685,7 @@ watch(repeat, persistSession);
 onMounted(() => {
     const params = new URLSearchParams(window.location.search);
     const sharedAirline = airlineSchedules.find((airline) => airline.id === params.get('airline'));
-    const sharedDataset = datasets.find((item) => item.id === params.get('scenario'));
+    const sharedDataset = datasets.find((item) => item.id === params.get('scenario') || item.id === params.get('scenario') + '-legs');
     const airlineDataset = datasets.find((item) => item.airlineCode === sharedAirline?.code);
     if (sharedDataset && (!sharedAirline || sharedDataset.airlineCode === sharedAirline.code))
         dataset.value = sharedDataset;

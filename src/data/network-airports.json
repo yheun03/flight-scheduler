@@ -2,177 +2,317 @@
     "AKL": {
         "name": "Auckland",
         "timeZone": "Pacific/Auckland",
-        "offset": "+13:00"
+        "offset": "+13:00",
+        "coordinates": [
+            -37.0081,
+            174.792
+        ]
     },
     "ALA": {
         "name": "Almaty",
         "timeZone": "Asia/Qyzylorda",
-        "offset": "+05:00"
+        "offset": "+05:00",
+        "coordinates": [
+            43.3521,
+            77.0405
+        ]
     },
     "AMS": {
         "name": "Amsterdam",
         "timeZone": "Europe/Amsterdam",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            52.3086,
+            4.7639
+        ]
     },
     "AOJ": {
         "name": "Aomori",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            40.7347,
+            140.691
+        ]
     },
     "ATL": {
         "name": "Atlanta",
         "timeZone": "America/New_York",
-        "offset": "-05:00"
+        "offset": "-05:00",
+        "coordinates": [
+            33.6367,
+            -84.4281
+        ]
     },
     "BCN": {
         "name": "바르셀로나",
         "timeZone": "Europe/Madrid",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            41.2971,
+            2.0785
+        ]
     },
     "BKI": {
         "name": "Kota Kinabalu",
         "timeZone": "Asia/Kuala_Lumpur",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            5.9372,
+            116.051
+        ]
     },
     "BKK": {
         "name": "방콕",
         "timeZone": "Asia/Bangkok",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            13.6811,
+            100.747
+        ]
     },
     "BNE": {
         "name": "Brisbane",
         "timeZone": "Australia/Brisbane",
-        "offset": "+10:00"
+        "offset": "+10:00",
+        "coordinates": [
+            -27.3842,
+            153.117
+        ]
     },
     "BOS": {
         "name": "Boston",
         "timeZone": "America/New_York",
-        "offset": "-05:00"
+        "offset": "-05:00",
+        "coordinates": [
+            42.3643,
+            -71.0052
+        ]
     },
     "BUD": {
         "name": "Budapest",
         "timeZone": "Europe/Budapest",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            47.4298,
+            19.2611
+        ]
     },
     "CAN": {
         "name": "광저우",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            23.3924,
+            113.299
+        ]
     },
     "CDG": {
         "name": "파리",
         "timeZone": "Europe/Paris",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            49.0128,
+            2.55
+        ]
     },
     "CEB": {
         "name": "Cebu",
         "timeZone": "Asia/Manila",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            10.3075,
+            123.979
+        ]
     },
     "CGK": {
         "name": "자카르타",
         "timeZone": "Asia/Jakarta",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            -6.1256,
+            106.656
+        ]
     },
     "CGO": {
         "name": "Zhengzhou",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            34.5197,
+            113.841
+        ]
     },
     "CGQ": {
         "name": "창춘",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            43.9962,
+            125.685
+        ]
     },
     "CJJ": {
         "name": "청주",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            36.717,
+            127.4987
+        ]
     },
     "CJU": {
         "name": "제주",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            33.5113,
+            126.493
+        ]
     },
     "CKG": {
         "name": "Chongqing",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            29.7192,
+            106.642
+        ]
     },
     "CNX": {
         "name": "Chiang Mai",
         "timeZone": "Asia/Bangkok",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            18.7668,
+            98.9626
+        ]
     },
     "CRK": {
         "name": "클락",
         "timeZone": "Asia/Manila",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            15.186,
+            120.56
+        ]
     },
     "CSX": {
         "name": "창사",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            28.1892,
+            113.22
+        ]
     },
     "CTS": {
         "name": "삿포로",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            42.7752,
+            141.692
+        ]
     },
     "CXR": {
         "name": "나트랑",
         "timeZone": "Asia/Saigon",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            11.9982,
+            109.219
+        ]
     },
     "DAD": {
         "name": "다낭",
         "timeZone": "Asia/Saigon",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            16.0439,
+            108.199
+        ]
     },
     "DEL": {
         "name": "New Delhi",
         "timeZone": "Asia/Calcutta",
-        "offset": "+05:30"
+        "offset": "+05:30",
+        "coordinates": [
+            28.5665,
+            77.1031
+        ]
     },
     "DFW": {
         "name": "Dallas-Fort Worth",
         "timeZone": "America/Chicago",
-        "offset": "-06:00"
+        "offset": "-06:00",
+        "coordinates": [
+            32.8968,
+            -97.038
+        ]
     },
     "DLC": {
         "name": "다롄",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            38.9657,
+            121.539
+        ]
     },
     "DPS": {
         "name": "Denpasar",
         "timeZone": "Asia/Makassar",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            -8.7482,
+            115.167
+        ]
     },
     "DYG": {
         "name": "장가계",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            29.1028,
+            110.443
+        ]
     },
     "EWR": {
         "name": "뉴욕/뉴어크",
         "timeZone": "America/New_York",
-        "offset": "-05:00"
+        "offset": "-05:00",
+        "coordinates": [
+            40.6925,
+            -74.1687
+        ]
     },
     "FCO": {
         "name": "로마",
         "timeZone": "Europe/Rome",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            41.8003,
+            12.2389
+        ]
     },
     "FOC": {
         "name": "Fuzhou",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            25.9351,
+            119.663
+        ]
     },
     "FRA": {
         "name": "프랑크푸르트",
         "timeZone": "Europe/Berlin",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            50.0333,
+            8.5706
+        ]
     },
     "FSZ": {
         "name": "Shizuoka"
@@ -180,449 +320,809 @@
     "FUK": {
         "name": "후쿠오카",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            33.5859,
+            130.451
+        ]
     },
     "GMP": {
         "name": "김포",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            37.5583,
+            126.791
+        ]
     },
     "GUM": {
         "name": "괌",
         "timeZone": "Pacific/Guam",
-        "offset": "+10:00"
+        "offset": "+10:00",
+        "coordinates": [
+            13.4834,
+            144.796
+        ]
     },
     "HAN": {
         "name": "하노이",
         "timeZone": "Asia/Saigon",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            21.2212,
+            105.807
+        ]
     },
     "HGH": {
         "name": "항저우",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            30.2295,
+            120.434
+        ]
     },
     "HIN": {
         "name": "사천",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.0886,
+            128.0717
+        ]
     },
     "HKG": {
         "name": "홍콩",
         "timeZone": "Asia/Hong_Kong",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            22.3089,
+            113.915
+        ]
     },
     "HKT": {
         "name": "푸껫",
         "timeZone": "Asia/Bangkok",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            8.1132,
+            98.3169
+        ]
     },
     "HND": {
         "name": "하네다",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.5523,
+            139.78
+        ]
     },
     "HNL": {
         "name": "호놀룰루",
         "timeZone": "Pacific/Honolulu",
-        "offset": "-10:00"
+        "offset": "-10:00",
+        "coordinates": [
+            21.3206,
+            -157.9242
+        ]
     },
     "HRB": {
         "name": "하얼빈",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            45.6234,
+            126.25
+        ]
     },
     "IAD": {
         "name": "워싱턴",
         "timeZone": "America/New_York",
-        "offset": "-05:00"
+        "offset": "-05:00",
+        "coordinates": [
+            38.9445,
+            -77.4558
+        ]
     },
     "ICN": {
         "name": "인천",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            37.4691,
+            126.451
+        ]
     },
     "ISG": {
         "name": "Ishigaki / Okinawa",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            24.3964,
+            124.245
+        ]
     },
     "IST": {
-        "name": "이스탄불"
+        "name": "이스탄불",
+        "coordinates": [
+            41.2753,
+            28.7519
+        ]
     },
     "JFK": {
         "name": "뉴욕",
         "timeZone": "America/New_York",
-        "offset": "-05:00"
+        "offset": "-05:00",
+        "coordinates": [
+            40.6398,
+            -73.7789
+        ]
     },
     "KHH": {
         "name": "Kaohsiung",
         "timeZone": "Asia/Taipei",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            22.5771,
+            120.35
+        ]
     },
     "KIJ": {
         "name": "Niigata",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            37.9559,
+            139.121
+        ]
     },
     "KIX": {
         "name": "간사이",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            34.4273,
+            135.244
+        ]
     },
     "KKJ": {
         "name": "Kitakyushu",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            33.8459,
+            131.035
+        ]
     },
     "KMG": {
         "name": "Kunming",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            25.1019,
+            102.9292
+        ]
     },
     "KMI": {
         "name": "미야자키",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            31.8772,
+            131.449
+        ]
     },
     "KMJ": {
         "name": "Kumamoto",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            32.8373,
+            130.855
+        ]
     },
     "KMQ": {
         "name": "Komatsu",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            36.3946,
+            136.407
+        ]
     },
     "KOJ": {
         "name": "Kagoshima",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            31.8034,
+            130.719
+        ]
     },
     "KPO": {
         "name": "포항경주",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.988,
+            129.4204
+        ]
     },
     "KTI": {
         "name": "프놈펜",
         "timeZone": "Asia/Phnom_Penh",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            12.488,
+            106.055
+        ]
     },
     "KUL": {
         "name": "Kuala Lumpur",
         "timeZone": "Asia/Kuala_Lumpur",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            2.7456,
+            101.71
+        ]
     },
     "KUV": {
         "name": "군산",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.9038,
+            126.616
+        ]
     },
     "KWJ": {
         "name": "광주",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.1232,
+            126.8054
+        ]
     },
     "KWL": {
         "name": "Guilin",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            25.2181,
+            110.039
+        ]
     },
     "LAS": {
         "name": "Las Vegas",
         "timeZone": "America/Los_Angeles",
-        "offset": "-08:00"
+        "offset": "-08:00",
+        "coordinates": [
+            36.0801,
+            -115.152
+        ]
     },
     "LAX": {
         "name": "로스앤젤레스",
         "timeZone": "America/Los_Angeles",
-        "offset": "-08:00"
+        "offset": "-08:00",
+        "coordinates": [
+            33.9425,
+            -118.408
+        ]
     },
     "LHR": {
         "name": "런던",
         "timeZone": "Europe/London",
-        "offset": "+00:00"
+        "offset": "+00:00",
+        "coordinates": [
+            51.4706,
+            -0.4619
+        ]
     },
     "LIS": {
         "name": "Lisbon",
         "timeZone": "Europe/Lisbon",
-        "offset": "+00:00"
+        "offset": "+00:00",
+        "coordinates": [
+            38.7813,
+            -9.1359
+        ]
     },
     "MAD": {
         "name": "Madrid",
         "timeZone": "Europe/Madrid",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            40.4719,
+            -3.5626
+        ]
     },
     "MFM": {
         "name": "Macau",
         "timeZone": "Asia/Macau",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            22.1496,
+            113.592
+        ]
     },
     "MNL": {
         "name": "마닐라",
         "timeZone": "Asia/Manila",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            14.5086,
+            121.02
+        ]
     },
     "MXP": {
         "name": "밀라노",
         "timeZone": "Europe/Rome",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            45.6306,
+            8.7281
+        ]
     },
     "MYJ": {
         "name": "Matsuyama",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            33.8272,
+            132.7
+        ]
     },
     "NGB": {
         "name": "Ningbo",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            29.8267,
+            121.462
+        ]
     },
     "NGO": {
         "name": "나고야",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            34.8584,
+            136.805
+        ]
     },
     "NGS": {
         "name": "Nagasaki",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            32.9169,
+            129.914
+        ]
     },
     "NKG": {
         "name": "난징",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            31.742,
+            118.862
+        ]
     },
     "NRT": {
         "name": "나리타",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.7647,
+            140.386
+        ]
     },
     "OIT": {
         "name": "Oita",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            33.4794,
+            131.737
+        ]
     },
     "OKA": {
         "name": "오키나와",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            26.1958,
+            127.646
+        ]
     },
     "ORD": {
         "name": "Chicago",
         "timeZone": "America/Chicago",
-        "offset": "-06:00"
+        "offset": "-06:00",
+        "coordinates": [
+            41.9786,
+            -87.9048
+        ]
     },
     "PEK": {
         "name": "베이징",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            40.0801,
+            116.585
+        ]
     },
     "PEN": {
         "name": "Penang",
         "timeZone": "Asia/Kuala_Lumpur",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            5.2971,
+            100.277
+        ]
     },
     "PQC": {
         "name": "Phu Quoc",
         "timeZone": "Asia/Saigon",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            10.1698,
+            103.9931
+        ]
     },
     "PRG": {
         "name": "프라하",
         "timeZone": "Europe/Prague",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            50.1008,
+            14.26
+        ]
     },
     "PUS": {
         "name": "김해",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.1795,
+            128.938
+        ]
     },
     "PVG": {
         "name": "푸동",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            31.1434,
+            121.805
+        ]
     },
     "RMQ": {
         "name": "Taichung",
         "timeZone": "Asia/Taipei",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            24.2647,
+            120.621
+        ]
     },
     "RSU": {
         "name": "여수",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            34.8423,
+            127.617
+        ]
     },
     "SDJ": {
         "name": "센다이",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            38.1397,
+            140.917
+        ]
     },
     "SEA": {
         "name": "Seattle / Tacoma",
         "timeZone": "America/Los_Angeles",
-        "offset": "-08:00"
+        "offset": "-08:00",
+        "coordinates": [
+            47.449,
+            -122.309
+        ]
     },
     "SFO": {
         "name": "샌프란시스코",
         "timeZone": "America/Los_Angeles",
-        "offset": "-08:00"
+        "offset": "-08:00",
+        "coordinates": [
+            37.619,
+            -122.375
+        ]
     },
     "SGN": {
         "name": "호찌민",
         "timeZone": "Asia/Saigon",
-        "offset": "+07:00"
+        "offset": "+07:00",
+        "coordinates": [
+            10.8188,
+            106.652
+        ]
     },
     "SHA": {
         "name": "홍차오",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            31.1979,
+            121.336
+        ]
     },
     "SHE": {
         "name": "Shenyang",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            41.6398,
+            123.483
+        ]
     },
     "SHI": {
         "name": "Shimojishima",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            24.8267,
+            125.145
+        ]
     },
     "SIN": {
         "name": "싱가포르",
         "timeZone": "Asia/Singapore",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            1.3502,
+            103.994
+        ]
     },
     "SYD": {
         "name": "시드니",
         "timeZone": "Australia/Sydney",
-        "offset": "+11:00"
+        "offset": "+11:00",
+        "coordinates": [
+            -33.9461,
+            151.177
+        ]
     },
     "SZX": {
         "name": "선전",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            22.6393,
+            113.811
+        ]
     },
     "TAE": {
         "name": "대구",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.8969,
+            128.6553
+        ]
     },
     "TAG": {
         "name": "Tagbilaran",
         "timeZone": "Asia/Manila",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            9.6654,
+            123.8535
+        ]
     },
     "TAK": {
         "name": "다카마쓰",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            34.2142,
+            134.016
+        ]
     },
     "TAO": {
         "name": "Qingdao",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            36.2661,
+            120.374
+        ]
     },
     "TAS": {
         "name": "Tashkent",
         "timeZone": "Asia/Samarkand",
-        "offset": "+05:00"
+        "offset": "+05:00",
+        "coordinates": [
+            41.2579,
+            69.2812
+        ]
     },
     "TFU": {
         "name": "청두",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            30.29,
+            104.4433
+        ]
     },
     "TPE": {
         "name": "타이베이",
         "timeZone": "Asia/Taipei",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            25.0777,
+            121.233
+        ]
     },
     "TSN": {
         "name": "텐진",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            39.1244,
+            117.346
+        ]
     },
     "UBN": {
         "name": "울란바타르",
         "timeZone": "Asia/Ulaanbaatar",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            47.646916,
+            106.819833
+        ]
     },
     "UKB": {
         "name": "고베",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            34.6328,
+            135.224
+        ]
     },
     "USN": {
         "name": "울산",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.5935,
+            129.352
+        ]
     },
     "VIE": {
         "name": "Vienna",
         "timeZone": "Europe/Vienna",
-        "offset": "+01:00"
+        "offset": "+01:00",
+        "coordinates": [
+            48.1103,
+            16.5697
+        ]
     },
     "WJU": {
         "name": "원주",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            37.4412,
+            127.9639
+        ]
     },
     "WUH": {
         "name": "Wuhan",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            30.7838,
+            114.208
+        ]
     },
     "XIY": {
         "name": "시안",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            34.4471,
+            108.752
+        ]
     },
     "XMN": {
         "name": "Xiamen",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            24.544,
+            118.128
+        ]
     },
     "YGJ": {
         "name": "요나고",
         "timeZone": "Asia/Tokyo",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            35.4922,
+            133.236
+        ]
     },
     "YIH": {
         "name": "Yichang",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            30.5566,
+            111.48
+        ]
     },
     "YNJ": {
         "name": "옌지",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            42.8828,
+            129.451
+        ]
     },
     "YNT": {
         "name": "Yantai",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            37.4017,
+            121.372
+        ]
     },
     "YNY": {
         "name": "양양",
         "timeZone": "Asia/Seoul",
-        "offset": "+09:00"
+        "offset": "+09:00",
+        "coordinates": [
+            38.0613,
+            128.669
+        ]
     },
     "YNZ": {
         "name": "옌청",
         "timeZone": "Asia/Shanghai",
-        "offset": "+08:00"
+        "offset": "+08:00",
+        "coordinates": [
+            33.4258,
+            120.2031
+        ]
     },
     "YVR": {
         "name": "Vancouver",
         "timeZone": "America/Vancouver",
-        "offset": "-07:00"
+        "offset": "-07:00",
+        "coordinates": [
+            49.1939,
+            -123.184
+        ]
     },
     "YYZ": {
         "name": "Toronto",
         "timeZone": "America/Toronto",
-        "offset": "-05:00"
+        "offset": "-05:00",
+        "coordinates": [
+            43.6772,
+            -79.6306
+        ]
     }
 }

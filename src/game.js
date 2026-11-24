@@ -9,13 +9,14 @@ export function getBlocks(dataset) {
     const flights = new Map(dataset.flights.map((flight) => [flight.id, flight]));
     return dataset.rotations.map((r) => {
         const outbound = flights.get(r.outboundId);
-        const inbound = flights.get(r.inboundId);
+        const inbound = flights.get(r.inboundId) || outbound;
+        const single = !r.inboundId;
         const start = Date.parse(outbound.scheduledDeparture);
         const outEnd = Date.parse(outbound.scheduledArrival);
-        const inStart = Date.parse(inbound.scheduledDeparture);
+        const inStart = single ? outEnd : Date.parse(inbound.scheduledDeparture);
         const arrival = Date.parse(inbound.scheduledArrival);
         return {
-            ...r,
+            ...r, single,
             outbound,
             inbound,
             start,
@@ -24,13 +25,63 @@ export function getBlocks(dataset) {
             arrival,
             end: arrival + r.turnaroundMinutes * MINUTE,
             hours: (outEnd - start + arrival - inStart) / HOUR,
-            cycles: 2,
+            cycles: single ? 1 : 2,
         };
     });
 }
 
-export function solveSchedule(dataset) {
+// A positioning flight is a game assumption, measured in block time.
+function ferryDuration(dataset, from, to) {
+    if (!from || from === to) return Infinity;
+    if ([from, to].every((code) => ['GMP', 'ICN'].includes(code))) return 45;
+    const a = dataset.airportLocations?.[from]?.coordinates;
+    const b = dataset.airportLocations?.[to]?.coordinates;
+    if (!a || !b) return Infinity;
+    const radians = Math.PI / 180;
+    const h = Math.sin((b[0] - a[0]) * radians / 2) ** 2 +
+        Math.cos(a[0] * radians) * Math.cos(b[0] * radians) * Math.sin((b[1] - a[1]) * radians / 2) ** 2;
+    const km = 12742 * Math.asin(Math.sqrt(Math.min(1, h)));
+    return Math.ceil((30 + km / 750 * 60) / 5) * 5;
+}
+export function manualFerry(dataset, assignment) {
+    const match = /^ferry:([A-Z]{3}):([A-Z]{3}):(\d{13}):(.+)$/.exec(assignment?.rotationId || '');
+    if (!match || match[4] !== assignment.aircraftId || !dataset.pending) return null;
+    const [, from, to, timestamp] = match;
+    const start = Number(timestamp), minutes = ferryDuration(dataset, from, to);
+    if (!Number.isFinite(minutes) || start < dataset.weekStart || start >= dataset.weekEnd) return null;
+    const arrival = start + minutes * MINUTE;
+    return { id: assignment.rotationId, aircraftId: assignment.aircraftId, from, to, start, arrival,
+        end: arrival + dataset.rules.destinationMinimumMinutes * MINUTE, active: true, manual: true, minutes };
+}
+export function ferryCost(dataset, minutes) {
+    return minutes / 60 * (dataset.rules.fuelPerHour + dataset.rules.reservePerHour) + dataset.rules.reservePerCycle;
+}
+export function ferryConnections(dataset, assignments, blocks = getBlocks(dataset)) {
+    const byId = new Map(blocks.map((b) => [b.id, b]));
+    const last = new Map();
+    const options = assignments.map((a) => manualFerry(dataset, a)).filter(Boolean);
+    const manual = [...options];
+    for (const a of assignments.filter((a) => byId.has(a.rotationId)).slice()
+        .sort((a,b) => byId.get(a.rotationId).start - byId.get(b.rotationId).start)) {
+        const block = byId.get(a.rotationId), previous = last.get(a.aircraftId);
+        if (previous && block.single && !manual.some((f) => f.aircraftId === a.aircraftId && f.start >= previous.end && f.start < block.start)) {
+            const ferryMinutes = ferryDuration(dataset, previous.inbound.to, block.outbound.from);
+            const end = previous.end + (ferryMinutes + block.turnaroundMinutes) * MINUTE;
+            if (end <= block.start) options.push({ id: block.id, aircraftId: a.aircraftId,
+                minutes: ferryMinutes, from: previous.inbound.to, to: block.outbound.from, start: previous.end,
+                arrival: previous.end + ferryMinutes * MINUTE, end, active: a.ferryFrom === previous.id, previous: previous.id });
+        }
+        last.set(a.aircraftId, block);
+    }
+    return options;
+}
+
+function planSchedule(dataset, attempt = 0) {
+    let seed = attempt;
+    const priority = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
     const blocks = getBlocks(dataset).sort((a, b) => a.start - b.start || a.end - b.end);
+    const earlyEnd = dataset.weekStart + 72 * HOUR;
+    const earlyShare = Math.ceil(blocks.filter((b) => b.start < earlyEnd).length / dataset.aircraft.length);
     const hasMultipleBases = new Set(blocks.map((block) => block.outbound.from)).size > 1;
     const states = dataset.aircraft.map((aircraft) => ({
         aircraft,
@@ -42,6 +93,7 @@ export function solveSchedule(dataset) {
     }));
     const assignments = [];
     for (const block of blocks) {
+        if (attempt) for (const s of states) s.rank = priority();
         const candidates = states
             .filter((state) => {
                 const maintenance = dataset.maintenance.filter(
@@ -57,22 +109,103 @@ export function solveSchedule(dataset) {
             })
             .sort(
                 (a, b) =>
+                    (attempt ? Number(!a.airport) - Number(!b.airport) || a.rank - b.rank : 0) ||
+                    (block.single && !attempt && block.start < earlyEnd
+                        ? Number(a.count >= earlyShare) - Number(b.count >= earlyShare) : 0) ||
+                    (block.single ? Number(!a.airport) - Number(!b.airport) || a.hours - b.hours : 0) ||
                     (hasMultipleBases
                         ? Number(!a.airport) - Number(!b.airport) || a.count - b.count
                         : a.count - b.count || Number(!a.airport) - Number(!b.airport)) ||
                     b.end - a.end ||
                     a.hours - b.hours,
             );
-        const state = candidates[0];
+        let state = candidates[0];
+        let ferryFrom, ferryMinutes = 0;
+        if (!state && block.single) {
+            const options = states.map((s) => ({ s, minutes: ferryDuration(dataset, s.airport, block.outbound.from) }))
+                .filter(({ s, minutes }) => s.end + (minutes + block.turnaroundMinutes) * MINUTE <= block.start &&
+                    s.hours + block.hours + minutes / 60 <= dataset.rules.maxHours && s.cycles + 2 <= dataset.rules.maxCycles)
+                .sort((a, b) => a.minutes - b.minutes || a.s.hours - b.s.hours);
+            if (options.length) {
+                state = options[0].s;
+                ferryFrom = state.previous;
+                ferryMinutes = options[0].minutes;
+            }
+        }
+        if (!state && block.single) {
+            // Keep the published flight visible and let validation flag the unresolved connection.
+            state = states.slice().sort((a,b) => Number(a.end > block.start) - Number(b.end > block.start)
+                || Number(a.airport !== block.outbound.from) - Number(b.airport !== block.outbound.from)
+                || a.end - b.end)[0];
+        }
         if (!state) throw new Error(`${block.outbound.number}편을 배정할 수 있는 기체가 없습니다.`);
-        assignments.push({ rotationId: block.id, aircraftId: state.aircraft.id });
+        assignments.push({ rotationId: block.id, aircraftId: state.aircraft.id, ...(ferryFrom ? { ferryFrom } : {}) });
+        state.previous = block.id;
         state.end = block.end;
         state.airport = block.inbound.to;
-        state.hours += block.hours;
-        state.cycles += block.cycles;
+        state.hours += block.hours + (ferryFrom ? ferryMinutes / 60 : 0);
+        state.cycles += block.cycles + Number(Boolean(ferryFrom));
         state.count += 1;
     }
     return assignments;
+}
+
+// Move a leading sequence to an idle aircraft only when it joins its next
+// departure at the same airport. Published legs and their times stay fixed.
+function distributeEarlyFlights(dataset, plan) {
+    const byId = new Map(getBlocks(dataset).map((b) => [b.id, b]));
+    const schedules = new Map(dataset.aircraft.map((p) => [p.id, []]));
+    for (const a of plan) schedules.get(a.aircraftId).push(byId.get(a.rotationId));
+    const cutoff = dataset.weekStart + 72 * HOUR;
+    const transfers = new Map();
+    for (const [id, receiver] of schedules) {
+        if (receiver[0]?.start < cutoff) continue;
+        for (const donor of schedules.values()) {
+            if (donor.length < 2 || donor[0].start >= cutoff) continue;
+            const last = donor.findIndex((b, index) => donor[index + 1]?.start < cutoff &&
+                (!receiver.length || (b.end <= receiver[0].start && b.inbound.to === receiver[0].outbound.from)));
+            if (last < 0) continue;
+            const prefix = donor.slice(0, last + 1);
+            const plane = dataset.aircraft.find((p) => p.id === id);
+            const combined = [...prefix, ...receiver];
+            if (combined.reduce((h,b) => h + b.hours, plane.initialHours) > dataset.rules.maxHours ||
+                combined.length + plane.initialCycles > dataset.rules.maxCycles) continue;
+            donor.splice(0, prefix.length);
+            receiver.unshift(...prefix);
+            for (const b of prefix) transfers.set(b.id, id);
+            break;
+        }
+    }
+    if (!transfers.size) return plan;
+    const balanced = plan.map((a) => transfers.has(a.rotationId) ? { ...a, aircraftId: transfers.get(a.rotationId) } : a);
+    return validate(dataset, balanced).length ? plan : balanced;
+}
+
+export function solveSchedule(dataset, current = []) {
+    const first = planSchedule(dataset);
+    if (!dataset.pending) return first;
+    let best = first;
+    let result = evaluate(dataset, best);
+    function consider(plan) {
+        const candidate = evaluate(dataset, plan);
+        if (candidate.completed !== candidate.total) return;
+        if (candidate.issues.length < result.issues.length ||
+            (candidate.issues.length === result.issues.length && (candidate.score > result.score ||
+            (candidate.score === result.score && candidate.totalCost < result.totalCost)))) {
+            best = plan;
+            result = candidate;
+        }
+    }
+    consider(distributeEarlyFlights(dataset, first));
+    for (let attempt = 1; attempt <= 512; attempt++) {
+        if (attempt > 24 && !result.issues.length) break;
+        const plan = planSchedule(dataset, attempt);
+        consider(plan);
+        const balanced = distributeEarlyFlights(dataset, plan);
+        if (balanced !== plan) consider(balanced);
+    }
+    if (current.length) consider(current);
+    return best;
 }
 
 export function validate(dataset, assignments, repeat = false) {
@@ -81,7 +214,7 @@ export function validate(dataset, assignments, repeat = false) {
     const add = (code, message, aircraftId, blockId) => issues.push({ code, message, aircraftId, blockId });
     for (const a of assignments) {
         if (
-            !blocks.some((b) => b.id === a.rotationId) ||
+            (!blocks.some((b) => b.id === a.rotationId) && !manualFerry(dataset, a)) ||
             !dataset.aircraft.some((p) => p.id === a.aircraftId)
         )
             add('invalid', '알 수 없는 왕복편 또는 기체입니다.', a.aircraftId, a.rotationId);
@@ -91,6 +224,7 @@ export function validate(dataset, assignments, repeat = false) {
         if (!matches.length && b.required)
             add('unassigned', `${b.outbound.number} ${b.outbound.to} 필수 왕복편 미배정`, null, b.id);
         if (matches.length > 1) add('duplicate', `${b.outbound.number} 중복 배정`, null, b.id);
+        if (b.single) continue;
         if (
             !(b.start < b.outEnd && b.outEnd <= b.inStart && b.inStart < b.arrival) ||
             b.outbound.to !== b.inbound.from ||
@@ -100,14 +234,16 @@ export function validate(dataset, assignments, repeat = false) {
         if (b.inStart - b.outEnd < dataset.rules.destinationMinimumMinutes * MINUTE)
             add('destination-ready', `${b.outbound.number} 현지 준비 시간 부족`, null, b.id);
     }
+    const ferries = ferryConnections(dataset, assignments, blocks).filter((f) => f.active);
     for (const plane of dataset.aircraft) {
+        const ownFerries = ferries.filter((f) => f.aircraftId === plane.id);
         const assigned = assignments
             .filter((a) => a.aircraftId === plane.id)
             .map((a) => blocks.find((b) => b.id === a.rotationId))
             .filter(Boolean)
             .sort((a, b) => a.start - b.start);
-        const hours = plane.initialHours + assigned.reduce((sum, b) => sum + b.hours, 0);
-        const cycles = plane.initialCycles + assigned.reduce((sum, b) => sum + b.cycles, 0);
+        const hours = plane.initialHours + ownFerries.reduce((sum, f) => sum + f.minutes / 60, 0) + assigned.reduce((sum, b) => sum + b.hours, 0);
+        const cycles = plane.initialCycles + assigned.reduce((sum, b) => sum + b.cycles, ownFerries.length);
         if (hours > dataset.rules.maxHours)
             add('hours', `${plane.id} 운항 한도 ${dataset.rules.maxHours}시간 초과`, plane.id);
         if (cycles > dataset.rules.maxCycles)
@@ -115,6 +251,7 @@ export function validate(dataset, assignments, repeat = false) {
         const maintenance = dataset.maintenance.filter((m) => m.aircraftId === plane.id);
         let events = [
             ...assigned.map((b) => ({ ...b, from: b.outbound.from, to: b.inbound.to, arrival: b.arrival })),
+            ...ownFerries,
             ...maintenance.map((m) => ({
                 ...m,
                 from: m.airport,
@@ -203,16 +340,19 @@ export function evaluate(dataset, assignments, repeat = false) {
         if (!byPlane.has(aircraftId)) byPlane.set(aircraftId, new Set());
         byPlane.get(aircraftId).add(byId.get(rotationId));
     }
+    const ferries = ferryConnections(dataset, assignments, blocks).filter((f) => f.active);
     const loads = dataset.aircraft.map((p) => {
         const own = [...(byPlane.get(p.id) || [])];
+        const ownFerries = ferries.filter((f) => f.aircraftId === p.id);
+        const ferryCount = ownFerries.length;
         return {
             id: p.id,
-            hours: p.initialHours + own.reduce((s, b) => s + b.hours, 0),
-            cycles: p.initialCycles + own.length * 2,
-            count: own.length,
+            hours: p.initialHours + ownFerries.reduce((sum, f) => sum + f.minutes / 60, 0) + own.reduce((s, b) => s + b.hours, 0),
+            cycles: p.initialCycles + own.reduce((sum, b) => sum + b.cycles, ferryCount),
+            count: own.length, ferryCount,
         };
     });
-    const used = loads.filter((p) => p.count).length;
+    const used = loads.filter((p) => p.count || p.ferryCount).length;
     const spread = (key) => {
         const mean = loads.reduce((s, p) => s + p[key], 0) / loads.length;
         return mean ? loads.reduce((s, p) => s + Math.abs(p[key] - mean), 0) / (loads.length * mean) : 0;
@@ -221,7 +361,7 @@ export function evaluate(dataset, assignments, repeat = false) {
     for (const p of dataset.aircraft) {
         const own = [...(byPlane.get(p.id) || [])].sort((a, b) => a.start - b.start);
         own.forEach((b, i) => {
-            margins.push(
+            if (!b.single) margins.push(
                 Math.min(
                     1,
                     Math.max(
@@ -248,10 +388,10 @@ export function evaluate(dataset, assignments, repeat = false) {
         (1 + operationalErrors);
     const balance = 20 * eligible * Math.max(0, 1 - (spread('hours') + spread('cycles')) / 4);
     // 고정 필수 시간표의 연료와 정비 적립은 미배정 여부에 따라 줄지 않습니다.
-    const flightHours = required.reduce((s, b) => s + b.hours, 0);
+    const flightHours = required.reduce((s, b) => s + b.hours, ferries.reduce((sum, f) => sum + f.minutes / 60, 0));
     const fuel = flightHours * dataset.rules.fuelPerHour;
     const maintenanceReserve =
-        flightHours * dataset.rules.reservePerHour + required.length * 2 * dataset.rules.reservePerCycle;
+        flightHours * dataset.rules.reservePerHour + required.reduce((sum, b) => sum + b.cycles, ferries.length) * dataset.rules.reservePerCycle;
     const mandatoryMaintenance = dataset.maintenance.length * dataset.rules.maintenanceCost;
     const activation = used * dataset.rules.activationCost;
     const efficiency = 15 * eligible * (1 - (used / dataset.aircraft.length) * 0.15);
@@ -278,7 +418,7 @@ export function makeSave(dataset, assignments, playId, repeat) {
     return {
         version: SAVE_VERSION,
         datasetId: dataset.id,
-        assignments: assignments.map((a) => ({ rotationId: a.rotationId, aircraftId: a.aircraftId })),
+        assignments: assignments.map((a) => ({ rotationId: a.rotationId, aircraftId: a.aircraftId, ...(a.ferryFrom ? { ferryFrom: a.ferryFrom } : {}) })),
         playId,
         repeat,
         savedAt: new Date().toISOString(),
@@ -308,7 +448,7 @@ export function parseSave(raw, dataset) {
     for (const a of value.assignments) {
         if (
             !a ||
-            !dataset.rotations.some((r) => r.id === a.rotationId) ||
+            (!dataset.rotations.some((r) => r.id === a.rotationId) && !manualFerry(dataset, a)) ||
             !dataset.aircraft.some((p) => p.id === a.aircraftId) ||
             seen.has(a.rotationId)
         )

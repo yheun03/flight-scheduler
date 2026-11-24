@@ -755,3 +755,40 @@ export function makeWeeklyDataset(schedules, code, networkSchedules = []) {
     });
 }
 export const datasets = [airPremia, airSeoulFull, practice];
+
+// Expand by the departure airport's local service date, including overseas starts.
+export function makeLegScenario(base, airline) {
+    const records = new Map();
+    const date = (day) => new Date(Date.UTC(2026, 10, 16 + day)).toISOString().slice(0, 10);
+    function put(f) {
+        const id = [f.departureDate, f.number, f.from, f.to].join('-');
+        records.set(id, { ...f, id });
+    }
+    const weekdays = ['mon','tue','wed','thu','fri','sat','sun'];
+    for (const row of [...airline.networkSchedules, ...airline.schedules]) {
+        for (const [day, key] of weekdays.entries()) {
+            if (!(row.days ? row.days.includes('월화수목금토일'[day]) : row[key] === '1')) continue;
+            const [arrival, suffix] = row.arrival_time_local.split('+');
+            const offset = row.days ? row.arrivalOffset : Number(suffix || 0);
+            const f = flight('', row.flight_number, row.origin_code, row.destination_code, date(day),
+                row.departure_time_local, date(day + (offset || 0)), arrival, row.sources?.join(', ') || 'weekly-catalog');
+            if (offset == null) f.scheduledArrival = null;
+            put(f);
+        }
+    }
+    for (const f of base.flights) {
+        if (f.departureDate < date(0) || f.departureDate > date(6)) continue;
+        const key = [f.departureDate, f.number, f.from, f.to].join('-');
+        const existing = records.get(key);
+        if (!existing || f.sourceId.includes('20261122')) put(f);
+    }
+    const flights = [], pending = [];
+    for (const f of records.values()) {
+        if (Date.parse(f.scheduledArrival) > Date.parse(f.scheduledDeparture)) flights.push(f);
+        else pending.push(f);
+    }
+    flights.sort((a, b) => Date.parse(a.scheduledDeparture) - Date.parse(b.scheduledDeparture));
+    return { ...base, airportLocations: networkAirports, id: base.id + '-legs', description: '11월 16일~22일 현지 출발 정기편', flights, pending,
+        rotations: flights.map((f) => ({ id: f.id, outboundId: f.id, required: true,
+            turnaroundMinutes: base.rules.destinationMinimumMinutes })) };
+}

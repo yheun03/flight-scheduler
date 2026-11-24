@@ -30,10 +30,10 @@
             <span v-else class="flight-block__grip" aria-hidden="true">⠿</span>
         </span>
         <span v-if="!compact" class="flight-block__numbers">
-            <span>{{ block.outbound.number }} / {{ block.inbound.number }}</span>
+            <span>{{ block.outbound.number }}{{ block.single ? '' : ' / ' + block.inbound.number }}</span>
         </span>
         <span v-if="!compact" class="flight-block__route">
-            {{ block.outbound.from }} → {{ block.outbound.to }} → {{ block.inbound.to }}
+            {{ block.outbound.from }} → {{ block.outbound.to }}{{ block.single ? '' : ' → ' + block.inbound.to }}
         </span>
         <span class="flight-block__segments" aria-hidden="true">
             <span
@@ -46,11 +46,11 @@
         <span v-if="!compact" class="flight-block__time">
             <span><small>출발</small> {{ weekdayShort }} {{ block.outbound.departureLocal }}</span>
             <span>
-                <small>귀환</small> {{ arrivalWeekday }} {{ time(block.arrival) }}
+                <small>도착</small> {{ arrivalWeekday }} {{ time(block.arrival) }}
                 <em v-if="dayOffset">+{{ dayOffset }}일</em>
             </span>
         </span>
-        <span v-if="!compact" class="flight-block__ready">귀환 후 준비 {{ block.turnaroundMinutes }}분</span>
+        <span v-if="!compact" class="flight-block__ready">도착 후 준비 {{ block.turnaroundMinutes }}분</span>
     </button>
 </template>
 <script setup>
@@ -91,7 +91,7 @@ const segments = computed(() => {
 });
 const label = computed(
     () =>
-        `${destination.value} ${props.block.outbound.to}. 왕편 ${props.block.outbound.number}, 복편 ${props.block.inbound.number}. ${props.block.outbound.weekday}요일 ${props.block.outbound.departureLocal} 출발, ${time(props.block.arrival)} 귀환${dayOffset.value ? ` +${dayOffset.value}일` : ''}${props.invalid ? ', 오류 있음' : ''}.`,
+        `${destination.value} ${props.block.outbound.to}. 편명 ${props.block.outbound.number}${props.block.single ? '' : ', 복편 ' + props.block.inbound.number}. ${props.block.outbound.weekday}요일 ${props.block.outbound.departureLocal} 출발, ${time(props.block.arrival)} 도착${dayOffset.value ? ` +${dayOffset.value}일` : ''}${props.invalid ? ', 오류 있음' : ''}.`,
 );
 function startDrag(event) {
     event.dataTransfer.setData('text/plain', props.block.id);
