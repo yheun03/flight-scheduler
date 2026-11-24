@@ -189,6 +189,67 @@
                     </article>
                 </section>
 
+                <nav class="scheduler-tools" aria-label="운항 계획 도구">
+                    <button class="button scheduler-tools__flight" :disabled="!selected" @click="inspectFlight(selected.id)">
+                        {{ selected?.outbound.number || '편 선택' }} 상세
+                    </button>
+                            <button class="button" @click="save">
+                                <AppIcon name="save" />
+                                로컬 저장
+                            </button>
+                            <button v-if="dataset.pending" class="button" @click="selected?.single && assignedPlane(selected.id) ? requestFerryAfter() : openFerry()">페리 비행 추가</button>
+                    <details class="scheduler-tools__more" @click="closeToolsAfterAction"><summary class="button">더 보기</summary><div class="actionbar">
+                        <div class="actionbar__group">
+                            <button class="button" :disabled="!undoStack.length" @click="undo">
+                                <AppIcon name="undo" />
+                                되돌리기
+                            </button>
+                            <button class="button" :disabled="!redoStack.length" @click="redo">
+                                <AppIcon name="redo" />
+                                다시 실행
+                            </button>
+                            <span class="actionbar__divider"></span>
+                            <button
+                                class="button button--quiet"
+                                :disabled="!assignments.length"
+                                @click="commit([])"
+                            >
+                                <AppIcon name="reset" />
+                                전체 배정 해제
+                            </button>
+                        </div>
+                        <div class="actionbar__group">
+                            <button class="button" @click="load">
+                                <AppIcon name="folder" />
+                                로컬 불러오기
+                            </button>
+                            <button class="button" @click="saveCsv">
+                                <AppIcon name="save" />
+                                CSV 저장
+                            </button>
+                            <button class="button" @click="csvInput?.click()">
+                                <AppIcon name="folder" />
+                                CSV 불러오기
+                            </button>
+                            <input
+                                ref="csvInput"
+                                class="sr-only"
+                                type="file"
+                                accept=".csv,text/csv"
+                                @change="loadCsv"
+                            />
+                            <button v-if="dataset.pending" class="button" @click="openFerry">수동 페리 계획</button>
+                            <button v-if="dataset.kind !== 'fiction'" class="button" :disabled="answerBusy" @click="showAnswer">
+                                <AppIcon name="grid" />
+                                {{ answerBusy ? '배정안 비교 중' : '정답 보기' }}
+                            </button>
+                            <button class="button button--primary" @click="showResults">
+                                <AppIcon name="check" />
+                                운항 검증
+                            </button>
+                        </div>
+                    </div></details>
+                </nav>
                 <section ref="timelineSection" class="panel timeline-panel" aria-labelledby="timeline-title">
                     <div class="timeline-toolbar">
                         <div>
@@ -216,61 +277,6 @@
                                 </strong>
                                 <small>미배정 {{ unassigned.length }}편 · 오류 {{ conflicts.length }}건</small>
                             </span>
-                        </div>
-                    </div>
-                    <div class="actionbar">
-                        <div class="actionbar__group">
-                            <button class="button" :disabled="!undoStack.length" @click="undo">
-                                <AppIcon name="undo" />
-                                되돌리기
-                            </button>
-                            <button class="button" :disabled="!redoStack.length" @click="redo">
-                                <AppIcon name="redo" />
-                                다시 실행
-                            </button>
-                            <span class="actionbar__divider"></span>
-                            <button
-                                class="button button--quiet"
-                                :disabled="!assignments.length"
-                                @click="commit([])"
-                            >
-                                <AppIcon name="reset" />
-                                전체 배정 해제
-                            </button>
-                        </div>
-                        <div class="actionbar__group">
-                            <button class="button" @click="save">
-                                <AppIcon name="save" />
-                                로컬 저장
-                            </button>
-                            <button class="button" @click="load">
-                                <AppIcon name="folder" />
-                                로컬 불러오기
-                            </button>
-                            <button class="button" @click="saveCsv">
-                                <AppIcon name="save" />
-                                CSV 저장
-                            </button>
-                            <button class="button" @click="csvInput?.click()">
-                                <AppIcon name="folder" />
-                                CSV 불러오기
-                            </button>
-                            <input
-                                ref="csvInput"
-                                class="sr-only"
-                                type="file"
-                                accept=".csv,text/csv"
-                                @change="loadCsv"
-                            />
-                            <button v-if="dataset.pending" class="button" @click="openFerry">페리 비행 추가</button>
-                            <button v-if="dataset.kind !== 'fiction'" class="button" :disabled="answerBusy" @click="showAnswer">
-                                <AppIcon name="grid" />
-                                {{ answerBusy ? '배정안 비교 중' : '정답 보기' }}
-                            </button>
-                            <button class="button button--primary" @click="showResults">
-                                <AppIcon name="check" />
-                                운항 검증
-                            </button>
                         </div>
                     </div>
                     <div class="timeline-hint">
@@ -302,6 +308,8 @@
                             <small>배정 기체</small>
                             {{ assignedPlane(selected.id) }}
                         </span>
+                        <button v-if="selected.single" class="button" @click="requestFerryAfter">페리 비행 추가</button>
+                        <small v-if="selected.single">{{ ferryAfterStatus }}</small>
                     </div>
                     <div
                         ref="timelineScroll"
@@ -383,7 +391,7 @@
                                     >
                                         정비
                                     </span>
-                                    <span v-for="f in ferryOptions.filter((item) => item.active && item.aircraftId === plane.id)"
+                                    <span v-for="f in ferriesByPlane.get(plane.id)"
                                         :key="f.id" class="maintenance-block" :style="position(f)"
                                         :title="f.from + ' → ' + f.to + ' 계획 페리 ' + f.minutes + '분 / ' + number(ferryCost(dataset, f.minutes)) + ' 크레딧'">페리</span>
                                     <FlightBlock
@@ -398,7 +406,7 @@
                                             ...position(block),
                                             top: 7 + laneFor(block.id, plane.id) * 38 + 'px',
                                         }"
-                                        @select="selectBlock"
+                                        @select="inspectFlight"
                                         @drag-start="dragId = $event"
                                         @drag-end="endDrag"
                                     />
@@ -448,6 +456,29 @@
                     </div>
                 </section>
 
+                <dialog ref="inspector" @close="inspecting = false" class="flight-inspector" aria-labelledby="inspector-title" @keydown.esc.stop="inspector.close()">
+                    <template v-if="selected && inspecting">
+                        <header>
+                            <h2 id="inspector-title">{{ selected.outbound.number }} <small>{{ assignedPlane(selected.id) }}</small></h2>
+                            <button class="button" @click="inspector.close()">닫기</button>
+                        </header>
+                        <div v-for="leg in (selected.single ? [selected.outbound] : [selected.outbound, selected.inbound])" :key="leg.id" class="flight-inspector__leg">
+                            <strong>{{ airports[leg.from].name }} ({{ leg.from }}) → {{ airports[leg.to].name }} ({{ leg.to }})</strong>
+                            <span>출발 {{ formatDate(Date.parse(leg.scheduledDeparture)) }} → 도착 {{ formatDate(Date.parse(leg.scheduledArrival)) }} KST</span>
+                        </div>
+                        <section v-if="selected.single && assignedPlane(selected.id)">
+                            <strong>같은 기체의 다음 편</strong>
+                            <p v-if="nextLeg">{{ nextLeg.outbound.number }}　{{ nextLeg.outbound.from }} → {{ nextLeg.outbound.to }}　{{ formatDate(nextLeg.start) }} KST</p>
+                            <p v-else>아직 배정된 다음 편이 없습니다.</p>
+                            <p v-if="outgoingFerry">{{ outgoingFerry.from }} → {{ outgoingFerry.to }} 페리 / {{ outgoingFerry.minutes }}분 / {{ number(ferryCost(dataset, outgoingFerry.minutes)) }} 크레딧</p>
+                            <p v-else-if="nextLeg">{{ nextLeg.outbound.from === selected.inbound.to ? '같은 공항에서 이어지는 운항입니다.' : '페리 자동 연결 불가. 준비 시간과 기존 일정을 확인하세요.' }}</p>
+                            <button v-if="!nextLeg || outgoingFerry" class="button button--primary"
+                                :disabled="outgoingFerry?.active || (!nextLeg && !!ferryAfterStatus)" @click="requestFerryAfter">
+                                {{ outgoingFerry?.active ? '페리 연결됨' : nextLeg ? '페리 추가' : ferryAfterStatus ? '다음 편 배정 대기 중' : '다음 편 배정 시 페리 연결' }}
+                            </button>
+                        </section>
+                    </template>
+                </dialog>
                 <button class="button button--primary rotation-picker__trigger" aria-haspopup="dialog" @click="openPicker">
                     <AppIcon name="box" /> 운항 카드 선택
                 </button>
@@ -493,9 +524,10 @@
                                     <option v-for="plane in dataset.aircraft" :key="plane.id" :value="plane.id">{{ plane.id }} {{ plane.model }}</option>
                                 </select>
                             </label>
-                            <button v-if="selectedFerry" class="button" @click="toggleFerry(selectedFerry)">
-                                {{ selectedFerry.from }} → {{ selectedFerry.to }} 계획 페리 {{ selectedFerry.active ? '제거' : '추가' }} ({{ selectedFerry.minutes }}분 / {{ number(ferryCost(dataset, selectedFerry.minutes)) }} 크레딧)
+                            <button v-if="selected.single && assignedPlane(selected.id)" class="button" @click="requestFerryAfter">
+                                다음 편 페리 연결
                             </button>
+                            <small v-if="selected.single && assignedPlane(selected.id)">{{ ferryAfterStatus }}</small>
                         </footer>
                     </div>
                 </dialog>
@@ -540,7 +572,7 @@
                                 <FlightBlock
                                     :block="block"
                                     :selected="selectedId === block.id"
-                                    @select="selectBlock"
+                                    @select="inspectFlight"
                                     @drag-start="dragId = $event"
                                     @drag-end="endDrag"
                                 />
@@ -1198,9 +1230,42 @@ function addManualFerry() {
     ferryDialog.value.close();
     toast(`${f.from} → ${f.to} 페리 추가 / ${f.minutes}분 / ${number(ferryCost(dataset.value, f.minutes))} 크레딧`);
 }
-const selectedFerry = computed(() => ferryOptions.value.find((f) => f.id === selectedId.value));
-function toggleFerry(f) {
-    commit(assignments.value.map((a) => a.rotationId === f.id ? { ...a, ferryFrom: f.active ? undefined : f.previous } : a));
+const inspector = ref(null);
+const inspecting = ref(false);
+function closeToolsAfterAction(event) {
+    if (event.target.closest('button')) event.currentTarget.open = false;
+}
+function inspectFlight(id) {
+    selectBlock(id);
+    picker.value?.close();
+    inspecting.value = true;
+    if (!inspector.value.open) inspector.value.show();
+}
+watch([dataset, currentPage], () => { inspector.value?.close(); inspecting.value = false; });
+const nextLegById = computed(() => {
+    const next = new Map(), last = new Map();
+    for (const block of blocks.value.slice().sort((a,b) => a.start - b.start)) {
+        const plane = assignedPlane(block.id);
+        if (!plane) continue;
+        if (last.has(plane)) next.set(last.get(plane), block);
+        last.set(plane, block.id);
+    }
+    return next;
+});
+const nextLeg = computed(() => nextLegById.value.get(selectedId.value));
+const outgoingFerry = computed(() => ferryOptions.value.find((f) => f.previous === selectedId.value));
+const ferryAfterStatus = computed(() => {
+    const current = assignments.value.find((a) => a.rotationId === selectedId.value);
+    if (!current?.ferryAfter) return '';
+    if (!nextLeg.value) return '다음 편 배정 대기';
+    const ferry = outgoingFerry.value;
+    if (ferry?.active) return `${ferry.from} → ${ferry.to} / ${ferry.minutes}분 / ${number(ferryCost(dataset.value, ferry.minutes))} 크레딧`;
+    if (nextLeg.value.outbound.from === selected.value.inbound.to) return '동일 공항에서 다음 편 출발';
+    return '자동 연결 불가: 준비 시간, 기존 일정 또는 공항 정보 확인';
+});
+function requestFerryAfter() {
+    commit(assignments.value.map((a) => a.rotationId === selectedId.value ? { ...a, ferryAfter: true } : a));
+    toast(ferryAfterStatus.value);
 }
 const conflicts = computed(() => result.value.issues.filter((i) => i.code !== 'unassigned'));
 const assignmentIndex = computed(() => new Map(assignments.value.map((a) => [a.rotationId, a.aircraftId])));
@@ -1237,6 +1302,7 @@ const pendingMatches = computed(() => (dataset.value.pending || []).filter((f) =
 const pickerStatus = ref('pending');
 const pickerVisible = ref(false);
 function openPicker() {
+    inspector.value?.close();
     pickerQuery.value = '';
     pickerStatus.value = unassigned.value.length ? 'pending' : 'all';
     pickerVisible.value = true;
@@ -1283,9 +1349,21 @@ const formatTime = (value) =>
     }).format(value);
 const number = (value) => Math.round(value).toLocaleString('ko-KR');
 const assignedPlane = (id) => assignmentIndex.value.get(id) || '';
-const loadFor = (id) => result.value.loads.find((l) => l.id === id);
-const hasIssue = (id) => conflicts.value.some((i) => i.blockId === id);
-const issuesForPlane = (id) => conflicts.value.some((i) => i.aircraftId === id);
+const ferriesByPlane = computed(() => {
+    const groups = new Map();
+    for (const ferry of ferryOptions.value) {
+        if (!ferry.active) continue;
+        if (!groups.has(ferry.aircraftId)) groups.set(ferry.aircraftId, []);
+        groups.get(ferry.aircraftId).push(ferry);
+    }
+    return groups;
+});
+const loadsById = computed(() => new Map(result.value.loads.map((load) => [load.id, load])));
+const invalidFlights = computed(() => new Set(conflicts.value.map((issue) => issue.blockId)));
+const invalidPlanes = computed(() => new Set(conflicts.value.map((issue) => issue.aircraftId)));
+const loadFor = (id) => loadsById.value.get(id);
+const hasIssue = (id) => invalidFlights.value.has(id);
+const issuesForPlane = (id) => invalidPlanes.value.has(id);
 function visible(b) {
     return b.start < rangeEnd.value && b.end > rangeStart.value;
 }
@@ -1369,14 +1447,27 @@ function commit(next) {
     assignments.value = next;
     persistSession();
 }
-function assign(id, planeId) {
+function assign(id, planeId, drag = false) {
     if (
         !blocks.value.some((b) => b.id === id) ||
         (planeId && !dataset.value.aircraft.some((p) => p.id === planeId))
     )
         return;
     const next = assignments.value.filter((a) => a.rotationId !== id);
-    if (planeId) next.push({ rotationId: id, aircraftId: planeId });
+    const old = assignments.value.find((a) => a.rotationId === id);
+    if (planeId) next.push({ rotationId: id, aircraftId: planeId,
+        ...((drag || old?.ferryAfter) && dataset.value.pending ? { ferryAfter: true } : {}) });
+    if (drag && dataset.value.pending) {
+        const oldNext = blocks.value.filter((b) => old && assignedPlane(b.id) === old.aircraftId)
+            .sort((a,b) => a.start - b.start);
+        const following = oldNext[oldNext.findIndex((b) => b.id === id) + 1]?.id;
+        for (const f of ferryConnections(dataset.value, next, blocks.value)) {
+            if (!f.manual && (f.id === id || f.id === following)) {
+                const index = next.findIndex((a) => a.rotationId === f.id);
+                next[index] = { ...next[index], ferryFrom: f.previous };
+            }
+        }
+    }
     commit(next);
     selectedId.value = id;
     if (planeId) focusSelectedBlock();
@@ -1404,7 +1495,7 @@ function startPickerDrag(event, id) {
 function drop(event, planeId) {
     const id = event.dataTransfer.getData('text/plain');
     if (pickerDragging.value) picker.value?.close();
-    assign(id, planeId);
+    assign(id, planeId, true);
     endDrag();
 }
 function endDrag() {
@@ -1538,7 +1629,7 @@ function parseCsvRows(raw) {
 }
 function saveCsv() {
     const saved = makeSave(dataset.value, assignments.value, playId.value, repeat.value);
-    const header = ['version', 'datasetId', 'playId', 'repeat', 'savedAt', 'rotationId', 'aircraftId', 'ferryFrom'];
+    const header = ['version', 'datasetId', 'playId', 'repeat', 'savedAt', 'rotationId', 'aircraftId', 'ferryFrom', 'ferryAfter'];
     const items = saved.assignments.length ? saved.assignments : [{ rotationId: '', aircraftId: '' }];
     const rows = items.map((assignment) => [
         saved.version,
@@ -1549,6 +1640,7 @@ function saveCsv() {
         assignment.rotationId,
         assignment.aircraftId,
         assignment.ferryFrom || '',
+        assignment.ferryAfter ? '1' : '',
     ]);
     const csv = [header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
@@ -1577,7 +1669,7 @@ async function loadCsv(event) {
             savedAt: first[4],
             assignments: rows
                 .filter((row) => row[5] || row[6])
-                .map((row) => ({ rotationId: row[5], aircraftId: row[6], ...(row[7] ? { ferryFrom: row[7] } : {}) })),
+                .map((row) => ({ rotationId: row[5], aircraftId: row[6], ...(row[7] ? { ferryFrom: row[7] } : {}), ...(row[8] === '1' ? { ferryAfter: true } : {}) })),
         };
         const parsed = parseSave(JSON.stringify(saved), dataset.value);
         commit(parsed.assignments);

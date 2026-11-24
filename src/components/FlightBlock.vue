@@ -20,7 +20,7 @@
     >
         <span class="flight-block__heading">
             <strong>
-                <template v-if="compact">{{ block.outbound.to }}</template>
+                <template v-if="compact"><span class="flight-block__compact-number">{{ block.outbound.number }} </span>{{ block.outbound.to }}</template>
                 <template v-else>
                     {{ destination }}
                     <span>{{ block.outbound.to }}</span>
@@ -53,6 +53,10 @@
         <span v-if="!compact" class="flight-block__ready">도착 후 준비 {{ block.turnaroundMinutes }}분</span>
     </button>
 </template>
+<script>
+const formatTime = new Intl.DateTimeFormat('ko-KR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Seoul' });
+const formatWeekday = new Intl.DateTimeFormat('ko-KR', { weekday: 'short', timeZone: 'Asia/Seoul' });
+</script>
 <script setup>
 import { computed } from 'vue';
 import { airports } from '../data/schedules';
@@ -64,27 +68,14 @@ const props = defineProps({
 });
 const emit = defineEmits(['select', 'drag-start', 'drag-end']);
 const destination = computed(() => airports[props.block.outbound.to].name);
-const time = (value) =>
-    new Intl.DateTimeFormat('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hourCycle: 'h23',
-        timeZone: 'Asia/Seoul',
-    }).format(value);
+const time = (value) => formatTime.format(value);
 const dayOffset = computed(
     () =>
         Math.floor((props.block.arrival + 9 * 3600000) / 86400000) -
         Math.floor((props.block.start + 9 * 3600000) / 86400000),
 );
 const weekdayShort = computed(() => props.block.outbound.weekday.replace('요일', ''));
-const arrivalWeekday = computed(() =>
-    new Intl.DateTimeFormat('ko-KR', {
-        weekday: 'short',
-        timeZone: 'Asia/Seoul',
-    })
-        .format(props.block.arrival)
-        .replace('요일', ''),
-);
+const arrivalWeekday = computed(() => formatWeekday.format(props.block.arrival).replace('요일', ''));
 const segments = computed(() => {
     const b = props.block;
     return [b.outEnd - b.start, b.inStart - b.outEnd, b.arrival - b.inStart, b.end - b.arrival];

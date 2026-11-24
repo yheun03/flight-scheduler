@@ -2219,3 +2219,78 @@ h1 {
         select { width: 100%; padding: 8px; }
     }
 }
+
+.flight-block--compact {
+    container-type: inline-size;
+    .flight-block__compact-number { display: none; }
+    @container (min-width: 84px) {
+        .flight-block__compact-number { display: inline; font-size: inherit; color: inherit; }
+    }
+}
+.flight-inspector {
+    position: fixed;
+    inset: auto 16px 70px auto;
+    margin: 0;
+    width: min(390px, calc(100vw - 32px));
+    max-height: 70dvh;
+    overflow: auto;
+    z-index: 24;
+    padding: 18px;
+    color: $ink;
+    background: white;
+    border: 1px solid $line;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px #10251d33;
+    header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    h2 { font-size: 1.1rem; }
+    small, span { color: $muted; }
+    &__leg, section { display: grid; gap: 8px; margin-top: 12px; font-size: .875rem; }
+    section { padding-top: 12px; border-top: 1px solid $line; }
+}
+
+.scheduler-tools {
+    position: sticky;
+    top: 0;
+    z-index: 28;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid $line;
+    border-radius: 8px;
+    background: $surface;
+    box-shadow: 0 2px 8px #153f3212;
+    margin-bottom: 8px;
+
+    &__flight { margin-right: auto; }
+    &__more {
+        position: relative;
+        summary { cursor: pointer; list-style: none; }
+        summary::-webkit-details-marker { display: none; }
+        .actionbar {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            width: min(380px, calc(100vw - 48px));
+            max-height: 60dvh;
+            overflow: auto;
+            padding: 12px;
+            background: $surface;
+            border: 1px solid $line;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px #153f3220;
+        }
+        .actionbar__group { flex-wrap: wrap; }
+    }
+    @media (max-width: 600px) {
+        gap: 4px;
+        padding: 6px 4px;
+        .button { padding: 5px 7px; font-size: .75rem; }
+    }
+}
+.timeline-scroll {
+    max-height: 67dvh;
+    overflow: auto;
+    scroll-padding-top: 76px;
+    isolation: isolate;
+}

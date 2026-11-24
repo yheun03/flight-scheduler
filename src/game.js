@@ -58,6 +58,7 @@ export function ferryCost(dataset, minutes) {
 }
 export function ferryConnections(dataset, assignments, blocks = getBlocks(dataset)) {
     const byId = new Map(blocks.map((b) => [b.id, b]));
+    const requested = new Set(assignments.filter((a) => a.ferryAfter).map((a) => a.rotationId));
     const last = new Map();
     const options = assignments.map((a) => manualFerry(dataset, a)).filter(Boolean);
     const manual = [...options];
@@ -67,9 +68,9 @@ export function ferryConnections(dataset, assignments, blocks = getBlocks(datase
         if (previous && block.single && !manual.some((f) => f.aircraftId === a.aircraftId && f.start >= previous.end && f.start < block.start)) {
             const ferryMinutes = ferryDuration(dataset, previous.inbound.to, block.outbound.from);
             const end = previous.end + (ferryMinutes + block.turnaroundMinutes) * MINUTE;
-            if (end <= block.start) options.push({ id: block.id, aircraftId: a.aircraftId,
+            if (end <= block.start && !dataset.maintenance.some((m) => m.aircraftId === a.aircraftId && m.start < end && m.end > previous.end)) options.push({ id: block.id, aircraftId: a.aircraftId,
                 minutes: ferryMinutes, from: previous.inbound.to, to: block.outbound.from, start: previous.end,
-                arrival: previous.end + ferryMinutes * MINUTE, end, active: a.ferryFrom === previous.id, previous: previous.id });
+                arrival: previous.end + ferryMinutes * MINUTE, end, active: a.ferryFrom === previous.id || requested.has(previous.id), previous: previous.id });
         }
         last.set(a.aircraftId, block);
     }
@@ -418,7 +419,7 @@ export function makeSave(dataset, assignments, playId, repeat) {
     return {
         version: SAVE_VERSION,
         datasetId: dataset.id,
-        assignments: assignments.map((a) => ({ rotationId: a.rotationId, aircraftId: a.aircraftId, ...(a.ferryFrom ? { ferryFrom: a.ferryFrom } : {}) })),
+        assignments: assignments.map((a) => ({ rotationId: a.rotationId, aircraftId: a.aircraftId, ...(a.ferryFrom ? { ferryFrom: a.ferryFrom } : {}), ...(a.ferryAfter ? { ferryAfter: true } : {}) })),
         playId,
         repeat,
         savedAt: new Date().toISOString(),
