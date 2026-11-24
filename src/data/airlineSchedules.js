@@ -1,6 +1,13 @@
+import { getNetworkSchedules } from './weeklyNetwork';
 import airSeoulCsv from './airseoul-weekly-schedules.csv?raw';
 import parataCsv from './parata-weekly-schedules.csv?raw';
 import airPremiaCsv from './airpremia-weekly-schedules.csv?raw';
+
+import airBusanCsv from './airbusan-weekly-schedules.csv?raw';
+
+import jinairCsv from './jinair-weekly-schedules.csv?raw';
+import asianaCsv from './asiana-weekly-schedules.csv?raw';
+import koreanairCsv from './koreanair-weekly-schedules.csv?raw';
 
 function parseCsv(csv) {
     const [header, ...lines] = csv.trim().split('\n');
@@ -16,6 +23,14 @@ function parseCsv(csv) {
 }
 
 export const airlineSchedules = [
+    {
+        id: 'airbusan',
+        code: 'BX',
+        logo: `${import.meta.env.BASE_URL}airline-logos/ABL.png`,
+        name: '에어부산',
+        theme: 'sky',
+        schedules: parseCsv(airBusanCsv),
+    },
     {
         id: 'airseoul',
         code: 'RS',
@@ -40,4 +55,19 @@ export const airlineSchedules = [
         theme: 'sunrise',
         schedules: parseCsv(airPremiaCsv),
     },
-];
+    {
+        id: 'jinair', code: 'LJ', name: '진에어', theme: 'sky',
+        logo: `${import.meta.env.BASE_URL}airline-logos/JNA.png`,
+        schedules: parseCsv(jinairCsv),
+    },
+    {
+        id: 'asiana', code: 'OZ', name: '아시아나항공', theme: 'sky',
+        logo: `${import.meta.env.BASE_URL}airline-logos/AAR.png`,
+        schedules: parseCsv(asianaCsv),
+    },
+    {
+        id: 'koreanair', code: 'KE', name: '대한항공', theme: 'sky',
+        logo: `${import.meta.env.BASE_URL}airline-logos/KAL.png`,
+        schedules: parseCsv(koreanairCsv),
+    },
+].map((airline) => ({ ...airline, networkSchedules: getNetworkSchedules(airline.code) }));

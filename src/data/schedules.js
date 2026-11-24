@@ -1,5 +1,13 @@
+import networkAirports from './network-airports.json' with { type: 'json' };
+
 // 원본 예정편, 명시적 왕복 연결, 기체와 게임 규칙을 각각 보관합니다.
 export const airports = {
+    ...networkAirports,
+    PUS: { name: '부산', timeZone: 'Asia/Seoul', offset: '+09:00' },
+    CTS: { name: '삿포로', timeZone: 'Asia/Tokyo', offset: '+09:00' },
+    YNY: { name: '양양', timeZone: 'Asia/Seoul', offset: '+09:00' },
+    HAN: { name: '하노이', timeZone: 'Asia/Ho_Chi_Minh', offset: '+07:00' },
+    SZX: { name: '선전', timeZone: 'Asia/Shanghai', offset: '+08:00' },
     ICN: { name: '인천', timeZone: 'Asia/Seoul', offset: '+09:00' },
     GMP: { name: '김포', timeZone: 'Asia/Seoul', offset: '+09:00' },
     CJU: { name: '제주', timeZone: 'Asia/Seoul', offset: '+09:00' },
@@ -21,6 +29,24 @@ export const airports = {
     HKG: { name: '홍콩', timeZone: 'Asia/Hong_Kong', offset: '+08:00' },
 };
 export const sources = [
+    {
+        id: 'network-week', title: '11월 16일~22일 정기편의 현지 예정 시각',
+        sourceUrl: 'https://www.flightradar24.com/data/flights', checkedAt: '2026-11-23',
+        appliesTo: '2026-11-16 ~ 2026-11-22', status: '편명별 기준 주간 자료',
+        note: '운항 편명 화면에서 자료를 확인할 수 있습니다. 출도착 시각이 확인된 반대 방향 편을 게임용 왕복으로 연결합니다.',
+    },
+    {
+        id: 'fuk-november', title: '후쿠오카공항 2026년 11월 국제선 정기 시간표',
+        sourceUrl: 'https://www.fukuoka-airport.jp/assets/flight/schedule/doc/11/202611_timetable_int.pdf',
+        checkedAt: '2026-11-23', appliesTo: '2026-10-25 ~ 2026-11-30', status: '공항 공식 시간표',
+        note: '11월 16일부터 22일까지 적용되는 운항 요일과 현지 예정 시각',
+    },
+    {
+        id: 'busan-w26', title: '에어부산 동계 정기 시간표',
+        sourceUrl: 'https://www.airbusan.com/web/individual/booking/schedule',
+        checkedAt: '2026-11-23', appliesTo: '2026-11-16 ~ 2026-11-22',
+        status: '주요 3개 노선', note: '예정 시각 기준. 일시 비운항 편도 정기 운항일에 포함합니다.',
+    },
     {
         id: 'airseoul-icn-20261122',
         title: '인천공항 2026.11.22 에어서울 출발편',
@@ -392,7 +418,7 @@ export const airSeoulFull = makeDataset(
     {
         aircraft: airSeoulFullAircraft,
         rules: airSeoulFullRules,
-        difficulty: '중 난이도',
+        difficulty: '하 난이도',
         description: '2026.11.16~22 편명별 운항 요일을 반영한 주간 운항',
     },
 );
@@ -622,4 +648,110 @@ export const practice = makeDataset(
     'fiction',
     practiceRows,
 );
+const passengerFleets = {
+    BX: [['A320-200', 5], ['A321-200', 8], ['A321neo', 8]],
+    LJ: [['B737-800', 19], ['B737-900', 3], ['B737-8', 7], ['B777-200', 3], ['A321-200', 1]],
+    OZ: [['A380-800', 6], ['A350-900', 15], ['B777-200ER', 8], ['A330-300', 14], ['A321neo', 13], ['A321-200', 10]],
+    KE: [['A380-800', 5], ['B747-8i', 4], ['B777-300/300ER', 29], ['B787-9/10', 32], ['A330-300', 17],
+        ['B737 계열', 23], ['A321neo', 20], ['A220-300', 10], ['A350-900', 3]],
+};
+function networkRotations(schedules, minimumTurnaround) {
+    const byRoute = new Map();
+    const ordered = [];
+    const weekdays = '월화수목금토일';
+    const date = (day) => new Date(Date.UTC(2026, 10, 16 + day)).toISOString().slice(0, 10);
+    for (const row of schedules) {
+        if (!row.departure_time_local || !row.arrival_time_local || row.arrivalOffset == null) continue;
+        const from = row.origin_code;
+        const to = row.destination_code;
+        for (const weekday of row.days) {
+            const day = weekdays.indexOf(weekday);
+            const depDate = date(day);
+            const arrDate = date(day + row.arrivalOffset);
+            const dep = Date.parse(depDate + 'T' + row.departure_time_local + airports[from].offset);
+            const arr = Date.parse(arrDate + 'T' + row.arrival_time_local + airports[to].offset);
+            if (!(arr > dep && dep >= weekStart)) continue;
+            const leg = { row, from, to, depDate, arrDate, dep, arr };
+            const key = from + '-' + to;
+            if (!byRoute.has(key)) byRoute.set(key, []);
+            byRoute.get(key).push(leg);
+            ordered.push(leg);
+        }
+    }
+    ordered.sort((a, b) => a.dep - b.dep);
+    for (const list of byRoute.values()) list.sort((a, b) => a.dep - b.dep);
+    const used = new Set();
+    const pairs = [];
+    const domesticBases = ['ICN', 'PUS', 'GMP', 'CJU'];
+    for (const back of ordered) {
+        if (airports[back.to].timeZone !== 'Asia/Seoul') continue;
+        if (airports[back.from].timeZone === 'Asia/Seoul') {
+            const bases = [...domesticBases, ...[back.to, back.from].sort()];
+            if (bases.indexOf(back.to) > bases.indexOf(back.from)) continue;
+        }
+        // Match a return to the most recently arrived available outbound at that airport.
+        const out = byRoute.get(back.to + '-' + back.from)?.findLast((leg) =>
+            !used.has(leg) && leg.arr + minimumTurnaround * 60000 <= back.dep &&
+            back.dep <= leg.arr + 24 * 3600000);
+        if (!out) continue;
+        used.add(out);
+        used.add(back);
+        pairs.push([
+            out.depDate, out.from, out.to, out.row.flight_number, back.row.flight_number,
+            out.row.departure_time_local, out.row.arrival_time_local, back.depDate,
+            back.row.departure_time_local, back.row.arrival_time_local, 'network-week',
+            'network-week', out.arrDate, back.arrDate,
+        ]);
+    }
+    return pairs;
+}
+
+export function makeWeeklyDataset(schedules, code, networkSchedules = []) {
+    const parata = code === 'WE';
+    const metadata = {
+        WE: ['파라타항공', '최하', 'parata-weekly-20261122-v1'],
+        BX: ['에어부산', '중', 'airbusan-weekly-20261122-v3'],
+        LJ: ['진에어', '상', 'jinair-weekly-20261122-v2'],
+        OZ: ['아시아나항공', '실무', 'asiana-weekly-20261122-v2'],
+        KE: ['대한항공', '마스터', 'koreanair-weekly-20261122-v2'],
+    };
+    const [airlineName, difficulty, id] = metadata[code];
+    const parataPairs = {501:502, 503:504, 511:512, 513:514, 531:532, 201:202,
+        205:206, 271:272, 853:854, 6501:6502, 6503:6504, 6702:6701, 6704:6703};
+    const date = (offset) => new Date(Date.UTC(2026, 10, 16 + offset)).toISOString().slice(0, 10);
+    const rows = [];
+    for (const [day, weekday] of ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].entries()) {
+        for (const out of schedules) {
+            if (out[weekday] !== '1') continue;
+            const outNumber = Number(out.flight_number.slice(2));
+            const returnNumber = parata && parataPairs[outNumber] ? code + parataPairs[outNumber] : out.return_flight;
+            if (!returnNumber) continue;
+            const [arrival, arrivalOffset = 0] = out.arrival_time_local.split('+');
+            const returnWeekday = ['mon','tue','wed','thu','fri','sat','sun'][(day + Number(arrivalOffset)) % 7];
+            const back = schedules.find((row) => row.flight_number === returnNumber && row[returnWeekday] === '1');
+            const source = parata ? 'weekly-catalog' : out.destination_code === 'FUK' ? 'fuk-november' : 'busan-w26';
+            const [returnArrival, returnOffset = 0] = back.arrival_time_local.split('+');
+            const returnDay = day + Number(arrivalOffset);
+            rows.push([
+                date(day), out.origin_code, out.destination_code, out.flight_number, back.flight_number,
+                parata && outNumber === 201 && day === 0 ? '19:05' : out.departure_time_local, arrival,
+                date(returnDay), back.departure_time_local, returnArrival, source,
+                source, date(returnDay), date(returnDay + Number(returnOffset)),
+            ]);
+        }
+    }
+    rows.push(...networkRotations(networkSchedules, rules.destinationMinimumMinutes));
+    const bases = parata ? ['ICN', 'ICN', 'ICN', 'ICN', 'ICN', 'ICN', 'GMP', 'CJU'] : [];
+    const models = parata ? bases.map(() => null) : passengerFleets[code].flatMap(([model, count]) => Array(count).fill(model));
+    return makeDataset(id, airlineName + ' 주간 운항', 'weekly', rows, {
+        airlineName, airlineCode: code, difficulty: difficulty + ' 난이도',
+        aircraft: models.map((model, i) => ({
+            id: parata ? 'WE0' + (i + 1) : code + '-' + String(i + 1).padStart(3, '0'),
+            model, startAirport: bases[i] || (code === 'BX' && i % 2 === 0 ? 'PUS' : 'ICN'),
+            initialHours: 0, initialCycles: 0,
+        })),
+        rules: { ...airSeoulFullRules }, boundaryHours: parata ? 24 : 48,
+        description: '11월 16일~22일 출발 왕복편 / 동계 기본 시간표 기준',
+    });
+}
 export const datasets = [airPremia, airSeoulFull, practice];

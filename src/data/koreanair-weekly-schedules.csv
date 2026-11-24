@@ -1,0 +1,7 @@
+departure_group,flight_number,origin_code,origin_name,destination_code,destination_name,departure_time_local,arrival_time_local,operation_pattern,mon,tue,wed,thu,fri,sat,sun,basis_period,note,return_flight
+인천 출발,KE787,ICN,인천,FUK,후쿠오카,07:45,09:15,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,KE788
+기타 출발,KE788,FUK,후쿠오카,ICN,인천,10:30,12:00,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,
+인천 출발,KE791,ICN,인천,FUK,후쿠오카,10:50,12:30,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,KE792
+기타 출발,KE792,FUK,후쿠오카,ICN,인천,13:45,15:10,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,
+인천 출발,KE781,ICN,인천,FUK,후쿠오카,18:40,20:05,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,KE782
+기타 출발,KE782,FUK,후쿠오카,ICN,인천,21:05,22:35,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,

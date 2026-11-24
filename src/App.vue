@@ -87,7 +87,7 @@
                     <button class="scenario-pill" @click="openDialog('levels')">
                         <span class="scenario-pill__logo">
                             <img
-                                v-if="scenarioAirline"
+                                v-if="scenarioAirline?.logo"
                                 :src="scenarioAirline.logo"
                                 :alt="`${dataset.airlineName} 로고`"
                             />
@@ -95,7 +95,7 @@
                         </span>
                         <span>
                             <strong>{{ dataset.airlineName }}</strong>
-                            <small>{{ dataset.difficulty }} / 가상 기체 {{ dataset.aircraft.length }}대</small>
+                            <small>{{ dataset.difficulty }} / 배정 기체 {{ dataset.aircraft.length }}대</small>
                         </span>
                         <AppIcon name="settings" />
                     </button>
@@ -355,6 +355,7 @@
                                     <span class="timeline__aircraft-icon"><AppIcon name="plane" /></span>
                                     <div>
                                         <strong>{{ plane.id }}</strong>
+                                        <small v-if="plane.model || dataset.airlineCode === 'RS' || dataset.airlineCode === 'YP'">{{ plane.model || (dataset.airlineCode === 'RS' ? 'A321-200' : 'B787-9') }}</small>
                                         <small>
                                             <span>{{ loadFor(plane.id).count }}개 왕복</span>
                                         </small>
@@ -439,6 +440,45 @@
                     </div>
                 </section>
 
+                <button class="button button--primary rotation-picker__trigger" aria-haspopup="dialog" @click="openPicker">
+                    <AppIcon name="box" /> 운항 카드 선택
+                </button>
+                <dialog ref="picker" @close="pickerVisible = false" class="rotation-picker" aria-labelledby="picker-title" @click.self="picker.close()">
+                    <div class="rotation-picker__body">
+                        <header class="panel-heading">
+                            <h2 id="picker-title">운항 카드 선택</h2>
+                            <button class="button" @click="picker.close()">닫기</button>
+                        </header>
+                        <div class="rotation-picker__filters">
+                            <input v-model.trim="pickerQuery" type="search" placeholder="편명, 공항 또는 배정 기체 검색" aria-label="운항 카드 검색" autofocus />
+                            <select v-model="pickerStatus" aria-label="배정 상태">
+                                <option value="pending">미배정</option>
+                                <option value="assigned">배정 완료</option>
+                                <option value="all">전체</option>
+                            </select>
+                        </div>
+                        <div class="rotation-picker__list">
+                            <button v-for="block in pickerBlocks" :key="block.id" class="rotation-picker__card"
+                                :aria-pressed="selectedId === block.id" @click="selectBlock(block.id)">
+                                <strong>{{ block.outbound.from }} → {{ block.outbound.to }}</strong>
+                                <span>{{ block.outbound.weekday }} {{ block.outbound.departureLocal }}</span>
+                                <small>{{ block.outbound.number }} / {{ block.inbound.number }}</small>
+                                <small>{{ assignedPlane(block.id) || '미배정' }}</small>
+                            </button>
+                            <p v-if="!pickerBlocks.length">조건에 맞는 운항 카드가 없습니다.</p>
+                        </div>
+                        <footer v-if="selected" class="rotation-picker__selection">
+                            <strong>{{ selected.outbound.number }} / {{ selected.inbound.number }}</strong>
+                            <span>{{ selected.outbound.weekday }} {{ selected.outbound.departureLocal }}　{{ selected.outbound.from }} → {{ selected.outbound.to }}</span>
+                            <label>배정 기체
+                                <select :value="assignedPlane(selected.id) || ''" @change="picker.close(); assign(selected.id, $event.target.value || null)">
+                                    <option value="">미배정</option>
+                                    <option v-for="plane in dataset.aircraft" :key="plane.id" :value="plane.id">{{ plane.id }} {{ plane.model }}</option>
+                                </select>
+                            </label>
+                        </footer>
+                    </div>
+                </dialog>
                 <div class="workspace__lower">
                     <section
                         class="panel tray"
@@ -473,7 +513,7 @@
                         </ol>
                         <div class="tray__grid">
                             <div
-                                v-for="block in filteredUnassigned"
+                                v-for="block in trayPageBlocks"
                                 :key="block.id"
                                 class="tray__item"
                             >
@@ -513,6 +553,11 @@
                                 <span>배정된 블록을 이곳으로 옮기면 배정이 해제됩니다.</span>
                             </div>
                         </div>
+                        <nav v-if="trayPageCount > 1" class="tray__pagination" aria-label="미배정 카드 페이지">
+                            <button class="button" :disabled="trayPage === 1" @click="trayPage--">이전</button>
+                            <span>{{ trayPage }} / {{ trayPageCount }}</span>
+                            <button class="button" :disabled="trayPage === trayPageCount" @click="trayPage++">다음</button>
+                        </nav>
                     </section>
                     <section class="panel detail" aria-labelledby="detail-title">
                         <div class="panel-heading">
@@ -693,10 +738,10 @@
                 <div class="page-heading">
                     <div>
                         <div class="eyebrow">FLIGHT NUMBER CATALOG</div>
-                        <h1>항공사별 운항 편명</h1>
-                        <p>2026.11.22 기준 정기 운항 편명과 요일·현지 시각입니다.</p>
+                        <h1>항공사별 주간 운항 노선</h1>
+                        <p>11월 정규 노선과 11월 16일~22일의 편명별 운항 요일을 확인하세요.</p>
                     </div>
-                    <span class="badge">오늘 기준</span>
+                    <span class="badge">11월 22일 기준</span>
                 </div>
                 <div class="flight-catalog__toolbar">
                     <div class="flight-catalog__airlines" role="tablist" aria-label="항공사 선택">
@@ -705,10 +750,11 @@
                             :key="airline.id"
                             class="button"
                             :class="{ 'button--primary': selectedAirlineId === airline.id }"
-                            @click="selectedAirlineId = airline.id"
+                            @click="selectedAirlineId = airline.id; departureGroupFilter = 'all'"
                         >
                             <span class="flight-catalog__logo">
-                                <img :src="airline.logo" alt="" />
+                                <img v-if="airline.logo" :src="airline.logo" alt="" />
+                                <template v-else>{{ airline.code }}</template>
                             </span>
                             <span>
                                 {{ airline.name }}
@@ -717,48 +763,41 @@
                         </button>
                     </div>
                     <label>
-                        <span class="sr-only">출발지 그룹</span>
+                        <span class="sr-only">출발 공항</span>
                         <select v-model="departureGroupFilter">
-                            <option value="all">모든 출발지</option>
-                            <option value="인천 출발">인천 출발</option>
-                            <option value="김포 출발">김포 출발</option>
-                            <option value="기타 출발">기타 출발</option>
+                            <option value="all">모든 출발 공항</option>
+                            <option v-for="[code, name] in originOptions" :key="code" :value="code">
+                                {{ name }} ({{ code }})
+                            </option>
                         </select>
                     </label>
                 </div>
                 <section class="panel flight-catalog__panel">
                     <div class="panel-heading">
                         <div>
-                            <h2>{{ selectedAirline.name }} 운항편</h2>
-                            <p>총 {{ filteredAirlineSchedules.length }}개 편명</p>
+                            <h2>{{ selectedAirline.name }} 정규 노선</h2>
+                            <p>편도 {{ visibleRoutes.length }}개 노선 / 노선을 열면 편명별 운항 요일과 현지 예정 시각을 볼 수 있습니다.</p>
                         </div>
                     </div>
-                    <div class="flight-catalog__table-wrap">
-                        <table class="flight-catalog__table">
-                            <thead>
-                                <tr>
-                                    <th>편명</th>
-                                    <th>출발</th>
-                                    <th>도착</th>
-                                    <th>운항 요일</th>
-                                    <th>현지 시각</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="flight in filteredAirlineSchedules" :key="flight.flight_number">
-                                    <td><strong>{{ flight.flight_number }}</strong></td>
-                                    <td>{{ flight.origin_name }} <small>{{ flight.origin_code }}</small></td>
-                                    <td>{{ flight.destination_name }} <small>{{ flight.destination_code }}</small></td>
-                                    <td>
-                                        <span class="badge badge--neutral">
-                                            주 {{ flight.weekly_frequency }}회 · {{ flight.operation_pattern }}
-                                        </span>
-                                    </td>
-                                    <td>{{ flight.departure_time_local }} → {{ flight.arrival_time_local }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <details v-for="route in visibleRoutes" :key="selectedAirline.code + route.key" class="flight-catalog__route">
+                        <summary>
+                            <strong>{{ route.origin }} ({{ route.from }}) → {{ route.destination }} ({{ route.to }})</strong>
+                            <span>{{ route.pattern }}</span>
+                        </summary>
+                        <div v-if="route.flights.length" class="flight-catalog__table-wrap">
+                            <table class="flight-catalog__table">
+                                <thead><tr><th>편명</th><th>11월 16일~22일 운항 요일</th><th>현지 예정 시각</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="flight in route.flights" :key="[flight.flight_number, flight.departure_time_local, flight.days].join('-')">
+                                        <td><strong>{{ flight.flight_number }}</strong></td>
+                                        <td>{{ flight.complete === false ? '확인 요일 ' + [...flight.days].join(', ') : dayLabel(flight.days) }}</td>
+                                        <td>{{ flight.departure_time_local || '미확인' }} → {{ flight.arrival_time_local || '미확인' }}{{ flight.arrivalOffset ? ' (' + (flight.arrivalOffset > 0 ? '+' : '') + flight.arrivalOffset + '일)' : '' }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p v-else>11월 취항 목록에 있는 노선입니다. 기준 주간 편명과 시간은 미확인입니다.</p>
+                    </details>
                 </section>
             </main>
         </div>
@@ -925,7 +964,7 @@
             </template>
             <template v-if="dialogType === 'levels'">
                 <p class="modal__intro">
-                    기체 수는 실제 보유 대수를 재현한 것이 아닌 게임 시나리오 설정입니다.
+                    운용 기단에는 리스기가 포함됩니다. 수록 편명은 11월 16일부터 22일까지 시나리오에 반영한 범위입니다.
                 </p>
                 <div class="level-list">
                     <article
@@ -936,8 +975,10 @@
                     >
                         <span class="level-list__difficulty">{{ level.difficulty }}</span>
                         <div>
+                            <img :src="level.logo" alt="" width="68" height="24" style="object-fit: contain" />
                             <h3>{{ level.name }}</h3>
                             <p>{{ level.note }}</p>
+                            <p>{{ fleetInfo[level.name] }}</p>
                         </div>
                         <span class="badge" :class="{ 'badge--neutral': !level.datasetId }">
                             {{ level.datasetId ? (level.datasetId === dataset.id ? '선택됨' : '플레이') : '미출시' }}
@@ -945,7 +986,7 @@
                     </article>
                 </div>
                 <p class="modal__note">
-                    에어서울과 에어프레미아를 플레이할 수 있습니다. 기체 수와 운항 한도는 게임용 설정입니다.
+                    게임 배정 대수와 운항 한도는 시나리오별 설정입니다.
                 </p>
             </template>
             <template v-if="dialogType === 'help'">
@@ -995,10 +1036,11 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import AppIcon from './components/AppIcon.vue';
 import FlightBlock from './components/FlightBlock.vue';
-import { airPremia, airports, datasets, sources } from './data/schedules';
+import { airPremia, airports, datasets as existingDatasets, makeWeeklyDataset, sources } from './data/schedules';
+import { dayLabel, getRouteCatalog } from './data/weeklyNetwork';
 import { airlineSchedules } from './data/airlineSchedules';
 import {
     evaluate,
@@ -1013,11 +1055,15 @@ import {
     HOUR,
 } from './game';
 
-const dataset = ref(airPremia);
+const weeklyDatasets = airlineSchedules
+    .filter((airline) => ['WE', 'BX', 'LJ', 'OZ', 'KE'].includes(airline.code))
+    .map((airline) => makeWeeklyDataset(airline.schedules, airline.code, airline.networkSchedules));
+const datasets = [...existingDatasets, ...weeklyDatasets];
+const dataset = shallowRef(airPremia);
 const currentPage = ref('scheduler');
 const selectedAirlineId = ref('airseoul');
 const departureGroupFilter = ref('all');
-const assignments = ref([]);
+const assignments = shallowRef([]);
 const repeat = ref(false);
 const playId = ref(crypto.randomUUID());
 const undoStack = ref([]);
@@ -1034,24 +1080,24 @@ const timelineSection = ref(null);
 const timelineScroll = ref(null);
 const csvInput = ref(null);
 let noticeTimer;
-const levels = [
-    { name: '파라타항공', difficulty: '최하', note: '가상 기체 6대' },
-    {
-        name: '에어프레미아',
-        difficulty: '최하',
-        note: '실등록 기체 9대 / 중·장거리 주간 운항',
-        datasetId: 'airpremia-weekly-20261122-v2',
-    },
-    {
-        name: '에어서울',
-        difficulty: '중',
-        note: 'HL 등록기호 7대 / 편명별 운항 요일을 반영한 월~일 스케줄',
-        datasetId: 'airseoul-weekly-20261122-v2',
-    },
-    { name: '에어부산', difficulty: '상', note: '넓어지는 노선 네트워크' },
-    { name: '아시아나항공', difficulty: '실무', note: '마스터 3회 클리어 시 해금' },
-    { name: '진에어', difficulty: '마스터', note: '복잡한 기단 운영' },
-];
+const fleetInfo = {
+    '파라타항공': '운용 5대 (10월 확인) / A320-200 2대, A330-200 3대. 6호기 HL8788 도입 계약',
+    '에어프레미아': '운용 9대 (11월 20일) / B787-9',
+    '에어서울': '운용 6대 (9월 말) / A321-200',
+    '에어부산': '운용 21대 (10월 16일) / A320-200, A321-200, A321neo',
+    '진에어': '리스 33대 (9월 말) / B737-800 19대, B737-900 3대, B737-8 7대, B777-200 3대, A321-200 1대',
+    '아시아나항공': '여객기 66대 (9월 말) / A321, A330, A350, A380, B777',
+    '대한항공': '운용 166대 (9월) / 여객기 143대, 화물기 23대. A220, A321, A330, A350, A380, B737, B747, B777, B787',
+};
+const levels = ['WE', 'YP', 'RS', 'BX', 'LJ', 'OZ', 'KE'].map((code) => {
+    const scenario = datasets.find((item) => item.airlineCode === code && item.kind === 'weekly');
+    const airline = airlineSchedules.find((item) => item.code === code);
+    return {
+        name: airline.name, logo: airline.logo, datasetId: scenario.id,
+        difficulty: scenario.difficulty.split(' ')[0],
+        note: `수록 편명 ${new Set(scenario.flights.map((flight) => flight.number)).size}개 / 주간 ${scenario.flights.length}편 / 배정 기체 ${scenario.aircraft.length}대`,
+    };
+});
 const blocks = computed(() => getBlocks(dataset.value));
 const selectedAirline = computed(
     () => airlineSchedules.find((airline) => airline.id === selectedAirlineId.value) || airlineSchedules[0],
@@ -1059,16 +1105,17 @@ const selectedAirline = computed(
 const scenarioAirline = computed(() =>
     airlineSchedules.find((airline) => airline.code === dataset.value.airlineCode),
 );
-const filteredAirlineSchedules = computed(() =>
-    selectedAirline.value.schedules.filter(
-        (flight) => departureGroupFilter.value === 'all' || flight.departure_group === departureGroupFilter.value,
-    ),
-);
+const routeCatalog = computed(() => getRouteCatalog(selectedAirline.value));
+const originOptions = computed(() => [...new Map(routeCatalog.value.map((route) => [route.from, route.origin]))]);
+const visibleRoutes = computed(() => routeCatalog.value.filter(
+    (route) => departureGroupFilter.value === 'all' || route.from === departureGroupFilter.value,
+));
 const result = computed(() => evaluate(dataset.value, assignments.value, repeat.value));
 const conflicts = computed(() => result.value.issues.filter((i) => i.code !== 'unassigned'));
+const assignmentIndex = computed(() => new Map(assignments.value.map((a) => [a.rotationId, a.aircraftId])));
 const unassigned = computed(() =>
     blocks.value
-        .filter((b) => !assignments.value.some((a) => a.rotationId === b.id))
+        .filter((b) => !assignmentIndex.value.has(b.id))
         .sort(
             (a, b) =>
                 a.start - b.start ||
@@ -1079,6 +1126,33 @@ const unassigned = computed(() =>
 const filteredUnassigned = computed(() =>
     unassigned.value.filter((b) => airportFilter.value === 'all' || b.outbound.from === airportFilter.value),
 );
+const trayPage = ref(1);
+const trayPageSize = 12;
+const trayPageCount = computed(() => Math.max(1, Math.ceil(filteredUnassigned.value.length / trayPageSize)));
+const trayPageBlocks = computed(() => filteredUnassigned.value.slice((trayPage.value - 1) * trayPageSize, trayPage.value * trayPageSize));
+watch([airportFilter, dataset], () => { trayPage.value = 1; });
+watch(trayPageCount, (count) => { trayPage.value = Math.min(trayPage.value, count); });
+const picker = ref(null);
+const pickerQuery = ref('');
+const pickerStatus = ref('pending');
+const pickerVisible = ref(false);
+function openPicker() {
+    pickerQuery.value = '';
+    pickerStatus.value = unassigned.value.length ? 'pending' : 'all';
+    pickerVisible.value = true;
+    picker.value.showModal();
+}
+const pickerBlocks = computed(() => {
+    if (!pickerVisible.value) return [];
+    const query = pickerQuery.value.toLowerCase();
+    const planes = new Map(assignments.value.map((a) => [a.rotationId, a.aircraftId]));
+    return blocks.value.filter(({ id, outbound, inbound }) => {
+        const plane = planes.get(id);
+        if (pickerStatus.value === 'pending' && plane || pickerStatus.value === 'assigned' && !plane) return false;
+        return [outbound.number, inbound.number, outbound.from, outbound.to, airports[outbound.from].name,
+            airports[outbound.to].name, plane].join(' ').toLowerCase().includes(query);
+    });
+});
 const selected = computed(() => blocks.value.find((b) => b.id === selectedId.value));
 const days = computed(() =>
     Array.from({ length: 7 }, (_, index) => ({
@@ -1106,37 +1180,35 @@ const formatTime = (value) =>
         timeZone: 'Asia/Seoul',
     }).format(value);
 const number = (value) => Math.round(value).toLocaleString('ko-KR');
-const assignedPlane = (id) => assignments.value.find((a) => a.rotationId === id)?.aircraftId || '';
+const assignedPlane = (id) => assignmentIndex.value.get(id) || '';
 const loadFor = (id) => result.value.loads.find((l) => l.id === id);
 const hasIssue = (id) => conflicts.value.some((i) => i.blockId === id);
 const issuesForPlane = (id) => conflicts.value.some((i) => i.aircraftId === id);
 function visible(b) {
     return b.start < rangeEnd.value && b.end > rangeStart.value;
 }
-function planeBlocks(id) {
-    return blocks.value.filter((b) => assignedPlane(b.id) === id && visible(b));
-}
+const timelineRows = computed(() => {
+    const rows = new Map(dataset.value.aircraft.map(({ id }) => [id, { blocks: [], ends: [], lanes: new Map() }]));
+    for (const block of blocks.value) {
+        const row = rows.get(assignedPlane(block.id));
+        if (row && visible(block)) row.blocks.push(block);
+    }
+    for (const row of rows.values()) {
+        row.blocks.sort((a, b) => a.start - b.start);
+        for (const block of row.blocks) {
+            let lane = row.ends.findIndex((end) => end <= block.start);
+            if (lane < 0) lane = row.ends.length;
+            row.ends[lane] = block.end;
+            row.lanes.set(block.id, lane);
+        }
+    }
+    return rows;
+});
+const planeBlocks = (id) => timelineRows.value.get(id).blocks;
+const laneFor = (blockId, id) => timelineRows.value.get(id).lanes.get(blockId);
+const rowHeight = (id) => 46 + Math.max(0, timelineRows.value.get(id).ends.length - 1) * 38;
 function visibleMaintenance(id) {
     return dataset.value.maintenance.filter((m) => m.aircraftId === id && visible(m));
-}
-function lanesFor(id) {
-    const ends = [];
-    const lanes = {};
-    planeBlocks(id)
-        .sort((a, b) => a.start - b.start)
-        .forEach((b) => {
-            let lane = ends.findIndex((end) => end <= b.start);
-            if (lane < 0) lane = ends.length;
-            ends[lane] = b.end;
-            lanes[b.id] = lane;
-        });
-    return lanes;
-}
-function laneFor(blockId, id) {
-    return lanesFor(id)[blockId] || 0;
-}
-function rowHeight(id) {
-    return 46 + Math.max(0, ...Object.values(lanesFor(id))) * 38;
 }
 function position(block) {
     const start = Math.max(block.start, rangeStart.value);

@@ -1,0 +1,5 @@
+departure_group,flight_number,origin_code,origin_name,destination_code,destination_name,departure_time_local,arrival_time_local,operation_pattern,mon,tue,wed,thu,fri,sat,sun,basis_period,note,return_flight
+인천 출발,OZ132,ICN,인천,FUK,후쿠오카,06:10,07:35,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,OZ131
+기타 출발,OZ131,FUK,후쿠오카,ICN,인천,08:35,10:10,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,
+인천 출발,OZ134,ICN,인천,FUK,후쿠오카,13:10,14:40,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,OZ133
+기타 출발,OZ133,FUK,후쿠오카,ICN,인천,15:50,17:20,매일,1,1,1,1,1,1,1,2026-11,후쿠오카공항 11월 시간표,

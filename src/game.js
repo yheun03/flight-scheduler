@@ -6,9 +6,10 @@ export const PROGRESS_KEY = 'flight-scheduler-progress';
 export const SAVE_VERSION = 1;
 
 export function getBlocks(dataset) {
+    const flights = new Map(dataset.flights.map((flight) => [flight.id, flight]));
     return dataset.rotations.map((r) => {
-        const outbound = dataset.flights.find((f) => f.id === r.outboundId);
-        const inbound = dataset.flights.find((f) => f.id === r.inboundId);
+        const outbound = flights.get(r.outboundId);
+        const inbound = flights.get(r.inboundId);
         const start = Date.parse(outbound.scheduledDeparture);
         const outEnd = Date.parse(outbound.scheduledArrival);
         const inStart = Date.parse(inbound.scheduledDeparture);
@@ -195,10 +196,15 @@ export function evaluate(dataset, assignments, repeat = false) {
     const required = blocks.filter((b) => b.required);
     const completed = required.filter((b) => assignedIds.has(b.id)).length;
     const ratio = required.length ? completed / required.length : 1;
+    const byPlane = new Map();
+    const byId = new Map(blocks.map((block) => [block.id, block]));
+    for (const { aircraftId, rotationId } of assignments) {
+        if (!byId.has(rotationId)) continue;
+        if (!byPlane.has(aircraftId)) byPlane.set(aircraftId, new Set());
+        byPlane.get(aircraftId).add(byId.get(rotationId));
+    }
     const loads = dataset.aircraft.map((p) => {
-        const own = blocks.filter((b) =>
-            assignments.some((a) => a.rotationId === b.id && a.aircraftId === p.id),
-        );
+        const own = [...(byPlane.get(p.id) || [])];
         return {
             id: p.id,
             hours: p.initialHours + own.reduce((s, b) => s + b.hours, 0),
@@ -213,9 +219,7 @@ export function evaluate(dataset, assignments, repeat = false) {
     };
     const margins = [];
     for (const p of dataset.aircraft) {
-        const own = blocks
-            .filter((b) => assignments.some((a) => a.rotationId === b.id && a.aircraftId === p.id))
-            .sort((a, b) => a.start - b.start);
+        const own = [...(byPlane.get(p.id) || [])].sort((a, b) => a.start - b.start);
         own.forEach((b, i) => {
             margins.push(
                 Math.min(
